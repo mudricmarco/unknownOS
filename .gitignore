@@ -1,0 +1,40 @@
+# C and C++ object files, libraries, and executables
+*.o
+*.obj
+*.d
+
+# Static and shared libraries
+*.a
+*.lib
+*.la
+*.lo
+
+# Kernel binaries and output files
+*.bin
+*.elf
+*.sys
+*.exe
+*.out
+
+# Disk images
+*.iso
+*.img
+*.qcow2
+*.vmdk
+
+# Build and toolchain directories
+build/
+bin/
+obj/
+limine/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+
+# Log files
+*.log
+qemu-vga.log

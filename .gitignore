@@ -26,6 +26,7 @@
 build/
 bin/
 obj/
+iso_root/
 
 # IDE and editor files
 .vscode/

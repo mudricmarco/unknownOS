@@ -108,7 +108,6 @@ blit32_glyph blit32_Glyphs[blit_NUM_GLYPHS] =
 #endif/*blit32_ARRAY_ONLY*/
 };
 
-/* StartX/Y refers to the top left corner of the glyph's bounding box */
 int32_t blit32_TextNExplicit(blit_pixel *Buffer, blit_pixel Value, int32_t Scale, int32_t BufWidth, int32_t BufHeight, int32_t Wrap, int32_t StartX, int32_t StartY, int32_t StrLen, char *String)
 {
     int32_t IsNegative = BufWidth < 0;
@@ -118,7 +117,7 @@ int32_t blit32_TextNExplicit(blit_pixel *Buffer, blit_pixel Value, int32_t Scale
     size_t i;
     int32_t x, y;
     
-    StrLen = StrLen >= 0 ? StrLen : 0x7FFFFFFF; /* if negative, wrap to max int32 */
+    StrLen = StrLen >= 0 ? StrLen : 0x7FFFFFFF;
     for(i = 0, x = StartX, y = StartY; String[i] && i < (size_t)StrLen; ++i)
     {
         char c = String[i];
@@ -128,25 +127,36 @@ int32_t blit32_TextNExplicit(blit_pixel *Buffer, blit_pixel Value, int32_t Scale
         int32_t BufYMinExceed = BufUnderflow || (IsNegative && BufOverflow);
         int32_t BufYMaxExceed = BufOverflow  || (IsNegative && BufUnderflow);
         int32_t BufXMinExceed = x < 0;
-        int32_t EndX = c == '\n' || c == '\r' ? StartX            :
-                       c == '\t' ? x + 4 * Scale * blit32_ADVANCE :
-                       c == '\b' ?       x - Scale * blit32_WIDTH :
-                       /* normal char */ x + Scale * blit32_WIDTH;
-        int32_t BufXMaxExceed = EndX > AbsBufWidth;
 
-        if(BufYMaxExceed) { break; } /* no point adding extra undrawable lines */
-        else if((! BufYMinExceed && (! BufXMaxExceed || Wrap)) || c == '\n')
+        int32_t CharWidth = (c == '\t') ? 4 * Scale * blit32_ADVANCE : Scale * blit32_WIDTH;
+        int32_t BufXMaxExceed = (x + CharWidth) > AbsBufWidth;
+
+        if(BufYMaxExceed) { break; }
+        
+        if (c == '\n' || c == '\r') {
+            BufXMaxExceed = 0;
+        }
+
+        if((! BufYMinExceed && (! BufXMaxExceed || Wrap)) || c == '\n' || c == '\r')
         {
-            if(BufXMaxExceed && c != '\n') { c = '\n'; --i; } /* new line and redo on-screen checks */
-            else if(BufXMinExceed)         { c = ' '; }       /* skip past character without drawing */
+            if(BufXMaxExceed && c != '\n' && c != '\r' && c != '\t' && c != ' ') { 
+                c = '\n'; 
+                --i; 
+            }
+            else if(BufXMinExceed && c != '\n' && c != '\r') { 
+                c = ' '; 
+            }
+
             switch(c)
             {
-                default:                                                 /* normal character */
+                default:
                 {
                     uint32_t glY, pxY, glX, pxX;
                     blit32_glyph Glyph = blit32_Glyphs[blit_IndexFromASCII(c)];
-                    uint32_t OffsetY = (uint32_t)(y + (int32_t)blit32_EXTRA_BITS(Glyph) * Scale * DrawDir);
-                    blit_pixel *Pixel, *Row = Buffer + OffsetY * (uint32_t)AbsBufWidth + (uint32_t)x;
+
+                    uint32_t OffsetY = (uint32_t)(y);
+
+                    blit_pixel *Pixel, *Row = Buffer + OffsetY * (uint32_t)AbsBufWidth + x;
                     for(glY = 0; glY < blit32_HEIGHT; ++glY)
                         for(pxY = (uint32_t)Scale; pxY--; Row += BufWidth)
                             for(glX = 0, Pixel = Row; glX < blit32_WIDTH; ++glX)
@@ -154,14 +164,38 @@ int32_t blit32_TextNExplicit(blit_pixel *Buffer, blit_pixel Value, int32_t Scale
                                 uint32_t Shift = glY * blit32_WIDTH + glX;
                                 uint32_t PixelDrawn = (Glyph >> Shift) & 1;
                                 if(PixelDrawn) for(pxX = (uint32_t)Scale; pxX--; *Pixel++ = Value);
-                                else { Pixel += Scale; }
+                                else for(pxX = (uint32_t)Scale; pxX--; *Pixel++ = 0);
                             }
-                } /* fallthrough */
-                case  ' ': x +=           Scale * blit32_ADVANCE; break; /* space: no need to touch pixels */
-                case '\b': x -=           Scale * blit32_ADVANCE; break; /* non-destructive backspace */
-                case '\t': x +=       4 * Scale * blit32_ADVANCE; break; /* tab: add 4 spaces */
-                case '\n': y += DrawDir * Scale * blit32_ROW_ADVANCE; ++LinesPrinted; __attribute__((fallthrough)); /* new line; fallthrough */
-                case '\r': x  = StartX;                        break; /* carriage return */
+                    x += Scale * blit32_ADVANCE;
+                    break;
+                }
+                case  ' ':
+                {
+                    uint32_t sY, pY, pX;
+                    // Uso la stessa identica formula del blocco default per l'inidirizzamento lineare della riga
+                    blit_pixel *Pixel, *Row = Buffer + (uint32_t)y * (uint32_t)AbsBufWidth + x;
+                    for(sY = 0; sY < (uint32_t)(blit32_HEIGHT + blit32_DESCENDER); ++sY)
+                        for(pY = (uint32_t)Scale; pY--; Row += BufWidth)
+                            for(Pixel = Row, pX = (uint32_t)(Scale * blit32_ADVANCE); pX--; *Pixel++ = 0);
+
+                    x += Scale * blit32_ADVANCE;
+                    break;
+                }
+                case '\b': x -=           Scale * blit32_ADVANCE; break;
+                case '\t':
+                {
+                    uint32_t sY, pY, pX;
+                    // Forza il calcolo della riga partendo dall'indirizzo base puro + x corrente
+                    blit_pixel *Pixel, *Row = Buffer + (uint32_t)y * (uint32_t)AbsBufWidth + x;
+                    for(sY = 0; sY < (uint32_t)(blit32_HEIGHT + blit32_DESCENDER); ++sY)
+                        for(pY = (uint32_t)Scale; pY--; Row += BufWidth)
+                            for(Pixel = Row, pX = (uint32_t)(4 * Scale * blit32_ADVANCE); pX--; *Pixel++ = 0);
+
+                    x += 4 * Scale * blit32_ADVANCE;
+                    break;
+                }
+                case '\n': y += DrawDir * Scale * blit32_ROW_ADVANCE; ++LinesPrinted; __attribute__((fallthrough));
+                case '\r': x  = StartX;                        break;
             }
         }
     }

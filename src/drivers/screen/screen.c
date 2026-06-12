@@ -1,10 +1,11 @@
 #include <drivers/screen/screen.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 #include <memory/memory.h>
 #include <bootloader/limine.h>
 
-// Blinded configuration of blit32 bitmap font.
+// Blinded configuration of blit32 bitmap font
 #define blit32_ARRAY_ONLY
 #define blit32_NO_HELPERS
 #define blit32_NO_INLINE
@@ -13,6 +14,7 @@
 static struct limine_framebuffer* fb = NULL;
 static size_t screen_pitch_div_4 = 0;
 
+// TODO: Implement a dynamic backbuffer that matches the actual framebuffer size instead of a fixed 1920x1080 buffer. This will allow support for higher resolutions and prevent potential out-of-bounds access on smaller screens.
 #define MAX_WIDTH  1920
 #define MAX_HEIGHT 1080
 static uint32_t backbuffer[MAX_WIDTH * MAX_HEIGHT];
@@ -25,6 +27,18 @@ static int32_t cursor_y = DEFAULT_CURSOR_Y;
 
 #define blit32_FONT_WIDTH blit32_WIDTH
 #define blit32_FONT_HEIGHT blit32_HEIGHT
+
+#define TAB_SIZE 4
+
+struct limine_framebuffer* screen_get_fb(void) {
+    return fb;
+}
+
+// Helper function to reset cursor position to the top-left corner of the screen
+void reset_cursor(void) {
+    cursor_x = DEFAULT_CURSOR_X;
+    cursor_y = DEFAULT_CURSOR_Y;
+}
 
 // Method to flush the backbuffer to the actual framebuffer in VRAM
 void screen_flush(void) {
@@ -46,12 +60,31 @@ void screen_init(struct limine_framebuffer* framebuffer) {
 }
 
 // Method to set a pixel in the backbuffer
-void screen_put_pixel(size_t x, size_t y, uint32_t color) {
+void screen_put_pixel(size_t x, size_t y, uint32_t color, bool direct_vram) {
     if (fb == NULL || x >= fb->width || y >= fb->height) return;
-    backbuffer[y * screen_pitch_div_4 + x] = color;
+
+    if (direct_vram) {
+        uint32_t* pixel_addr = ((uint32_t*)fb->address) + (y * screen_pitch_div_4) + x;
+        *pixel_addr = color;
+    } else {
+        backbuffer[y * screen_pitch_div_4 + x] = color;
+    }
 }
 
-static void check_newline_and_scroll(blit_props* props, int32_t cell_height) {
+void screen_clear(uint32_t color, bool direct_vram) {
+    if (fb == NULL) return;
+    for (size_t y = 0; y < fb->height; y++) {
+        for (size_t x = 0; x < fb->width; x++) {
+            screen_put_pixel(x, y, color, direct_vram);
+        }
+    }
+    reset_cursor();
+    if (!direct_vram) {
+        screen_flush();
+    }
+}
+
+static void check_newline_and_scroll(blit_props* props, int32_t cell_height, bool direct_vram) {
     cursor_x = DEFAULT_CURSOR_X;
     cursor_y += cell_height;
 
@@ -59,24 +92,36 @@ static void check_newline_and_scroll(blit_props* props, int32_t cell_height) {
         size_t stride = screen_pitch_div_4;
         int32_t line_size = cell_height * stride;
         
-        memmove((void*)backbuffer, 
-                (void*)(backbuffer + line_size), 
-                (props->BufHeight - cell_height) * stride * 4);
+        if(direct_vram) {
+            uint32_t* vram = (uint32_t*)fb->address;
+            for (int32_t y = 0; y < props->BufHeight - cell_height; y++) {
+                uint32_t* dest = vram + (y * stride);
+                uint32_t* src  = vram + ((y + cell_height) * stride);
+                memcpy((void*)dest, (void*)src, props->BufWidth * 4);
+            }
+            memset((void*)(vram + (props->BufHeight - cell_height) * stride), 
+                   0, 
+                   cell_height * stride * 4);
+        } else {
+            memmove((void*)backbuffer, 
+                    (void*)(backbuffer + line_size), 
+                    (props->BufHeight - cell_height) * stride * 4);
                 
-        memset((void*)(backbuffer + (props->BufHeight - cell_height) * stride), 
-               0, 
-               cell_height * stride * 4);
-               
+            memset((void*)(backbuffer + (props->BufHeight - cell_height) * stride), 
+                0, 
+                cell_height * stride * 4);
+        }
+        
         cursor_y -= cell_height;
     }
 }
 
 // Basic text printing function using the blit32 bitmap font.
-void kprint(char *text, uint32_t color, int32_t scale) {
+void kprint(const char *text, uint32_t color, int32_t scale, bool direct_vram) {
     if (fb == NULL || text == NULL) return;
 
     blit_props props;
-    props.Buffer    = backbuffer;
+    props.Buffer    = direct_vram ? (uint32_t*)fb->address : backbuffer;
     props.BufWidth  = (int32_t)screen_pitch_div_4;
     props.BufHeight = (int32_t)fb->height;
     props.Value     = color;
@@ -88,12 +133,42 @@ void kprint(char *text, uint32_t color, int32_t scale) {
 
     for (size_t i = 0; text[i] != '\0'; i++) {
         if (text[i] == '\n') {
-            check_newline_and_scroll(&props, cell_height);
+            check_newline_and_scroll(&props, cell_height, direct_vram);
             continue; 
         }
 
+        if (text[i] == '\r') {
+            cursor_x = DEFAULT_CURSOR_X;
+            continue; 
+        }
+
+        if (text[i] == '\b') {
+            cursor_x -= cell_width;
+            if (cursor_x < DEFAULT_CURSOR_X) {
+                cursor_x = DEFAULT_CURSOR_X;
+            }
+            continue; 
+        }
+
+        if (text[i] == '\t') {
+            int32_t tab_width = cell_width * TAB_SIZE;
+            if (cursor_x + tab_width > (int32_t)fb->width) {
+                check_newline_and_scroll(&props, cell_height, direct_vram);
+            } else {
+                for (int t = 0; t < TAB_SIZE; t++) {
+                    if (cursor_x + cell_width <= (int32_t)fb->width) {
+                        blit32_TextNExplicit(props.Buffer, props.Value, props.Scale, 
+                                             props.BufWidth, props.BufHeight, props.Wrap, 
+                                             cursor_x, cursor_y, -1, " ");
+                        cursor_x += cell_width;
+                    }
+                }
+            }
+            continue;
+        }
+
         if (cursor_x + cell_width > (int32_t)fb->width) {
-            check_newline_and_scroll(&props, cell_height);
+            check_newline_and_scroll(&props, cell_height, direct_vram);
         }
 
         char single_char_str[2] = { text[i], '\0' };
@@ -105,5 +180,7 @@ void kprint(char *text, uint32_t color, int32_t scale) {
         cursor_x += cell_width;
     }
 
-    screen_flush();
+    if (!direct_vram) {
+        screen_flush();
+    }
 }

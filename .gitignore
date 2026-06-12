@@ -38,3 +38,9 @@ iso_root/
 # Log files
 *.log
 qemu-vga.log
+
+# Temporary
+.cache/
+
+# Compilation database for clangd
+compile_commands.json

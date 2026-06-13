@@ -7,7 +7,15 @@
 
 #define DEFAULT_blit32_TEXT_SCALE 2
 
-struct limine_framebuffer *screen_get_fb(void);
+struct limine_framebuffer* screen_get_fb(void);
+
+void screen_set_cursor(int32_t x, int32_t y);
+
+void reset_cursor(void);
+
+int32_t screen_get_cursor_y(void);
+
+int32_t screen_get_cursor_x(void);
 
 void screen_init(struct limine_framebuffer* fb);
 

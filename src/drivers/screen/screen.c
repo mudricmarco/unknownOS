@@ -34,6 +34,19 @@ struct limine_framebuffer* screen_get_fb(void) {
     return fb;
 }
 
+void screen_set_cursor(int32_t x, int32_t y) {
+    cursor_x = x;
+    cursor_y = y;
+}
+
+int32_t screen_get_cursor_y(void) {
+    return cursor_y;
+}
+
+int32_t screen_get_cursor_x(void) {
+    return cursor_x;
+}
+
 // Helper function to reset cursor position to the top-left corner of the screen
 void reset_cursor(void) {
     cursor_x = DEFAULT_CURSOR_X;

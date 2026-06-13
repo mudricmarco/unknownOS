@@ -173,7 +173,7 @@ $(ISO_IMAGE): $(OUTPUT) limine.conf
 # ==============================================================================
 # Launch the automated build pipeline and fire up the QEMU emulator
 run: $(ISO_IMAGE)
-	qemu-system-x86_64 -M q35 -m 256M -cdrom $(ISO_IMAGE) -boot d
+	qemu-system-x86_64 -M q35 -m 256M -cdrom $(ISO_IMAGE) -boot d -serial stdio
 
 # Wipe out all generated build artifacts to reset the workspace environment
 clean:

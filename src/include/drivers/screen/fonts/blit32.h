@@ -105,6 +105,8 @@ blit32_glyph blit32_Glyphs[blit_NUM_GLYPHS] =
     blit32_DESCENDER,
     blit32_ADVANCE,
     blit32_ROW_ADVANCE,
+    /* Default props: no buffer, zero value, scale 1, zero dimensions, clipping wrap */
+    { NULL, 0, 1, 0, 0, blit_Clip },
 #endif/*blit32_ARRAY_ONLY*/
 };
 
@@ -153,19 +155,31 @@ int32_t blit32_TextNExplicit(blit_pixel *Buffer, blit_pixel Value, int32_t Scale
                 {
                     uint32_t glY, pxY, glX, pxX;
                     blit32_glyph Glyph = blit32_Glyphs[blit_IndexFromASCII(c)];
-
-                    uint32_t OffsetY = (uint32_t)(y);
-
+                    
+                    int32_t DesiredOffset = (blit32_EXTRA_BITS(Glyph) > 0) ? (int32_t)blit32_DESCENDER : 0;
+                    uint32_t OffsetY = (uint32_t)(y + (DesiredOffset * Scale * DrawDir));
+                    
                     blit_pixel *Pixel, *Row = Buffer + OffsetY * (uint32_t)AbsBufWidth + x;
-                    for(glY = 0; glY < blit32_HEIGHT; ++glY)
-                        for(pxY = (uint32_t)Scale; pxY--; Row += BufWidth)
-                            for(glX = 0, Pixel = Row; glX < blit32_WIDTH; ++glX)
+                    
+                    for (glY = 0; glY < blit32_HEIGHT; ++glY)
+                    {
+                        for (pxY = (uint32_t)Scale; pxY--; Row += BufWidth)
+                        {
+                            Pixel = Row;
+                            for (glX = 0; glX < blit32_WIDTH; ++glX)
                             {
                                 uint32_t Shift = glY * blit32_WIDTH + glX;
-                                uint32_t PixelDrawn = (Glyph >> Shift) & 1;
-                                if(PixelDrawn) for(pxX = (uint32_t)Scale; pxX--; *Pixel++ = Value);
-                                else for(pxX = (uint32_t)Scale; pxX--; *Pixel++ = 0);
+                                if ((Glyph >> Shift) & 1)
+                                {
+                                    for (pxX = (uint32_t)Scale; pxX--; *Pixel++ = Value);
+                                }
+                                else
+                                {
+                                    Pixel += Scale;
+                                }
                             }
+                        }
+                    }
                     x += Scale * blit32_ADVANCE;
                     break;
                 }

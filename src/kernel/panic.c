@@ -3,33 +3,9 @@
 #include <drivers/screen/colors.h>
 #include <drivers/serial.h>
 #include <bootloader/limine_requests.h>
-#include <memory/memory.h>
-#include <string.h>
+#include <klib/mem.h>
+#include <arch/cpu.h>
 #include <stdint.h>
-
-static void hcf(void) {
-    for (;;) {
-        asm volatile ("hlt");
-    }
-}
-
-//! Detect if we're running inside QEMU by checking the CPUID signature, for debugging purpose
-bool is_running_on_qemu(void) {
-    uint32_t eax, ebx, ecx, edx;
-    
-    asm volatile("cpuid"
-                 : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
-                 : "a"(0x40000000));
-    
-    char signature[13];
-    memcpy(signature, &ebx, 4);
-    memcpy(signature + 4, &ecx, 4);
-    memcpy(signature + 8, &edx, 4);
-    signature[12] = '\0';
-
-    return (strcmp(signature, "TCGTCGTCGTCG") == 0 || 
-            strcmp(signature, "KVMKVMKVM") == 0);
-}
 
 //? Just a fun little function to draw a sad face on the screen during panic, for a bit of personality during kernel panics.
 void draw_sad_face(uint32_t color) {
@@ -75,7 +51,7 @@ void kernel_panic(const char *message) {
 
     } else if (is_running_on_qemu()) {
         //! If we're running on QEMU, use the QEMU exit mechanism to signal a panic state (only for debugging purposes)
-        asm volatile ("outw %0, %1" : : "a"((uint16_t)0x2000), "Nd"((uint16_t)0x604));
+        qemu_exit();
     }
 
     hcf();

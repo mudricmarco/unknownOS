@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <memory/memory.h>
+#include <klib/mem.h>
 #include <bootloader/limine.h>
 
 // Blinded configuration of blit32 bitmap font

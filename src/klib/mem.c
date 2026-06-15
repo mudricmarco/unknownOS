@@ -5,7 +5,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <memory/memory.h>
+#include <klib/mem.h>
 
 void *memcpy(void *restrict dest, const void *restrict src, size_t n) {
     uint8_t *restrict pdest = dest;

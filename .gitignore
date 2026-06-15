@@ -42,5 +42,6 @@ qemu-vga.log
 # Temporary
 .cache/
 
-# Compilation database for clangd
+#clangd
 compile_commands.json
+.clangd

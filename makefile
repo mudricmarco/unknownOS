@@ -1,6 +1,6 @@
-# ==============================================================================
-# 1. OUTPUT AND TOOLCHAIN CONFIGURATION
-# ==============================================================================
+#Define the architecture for the build, defaulting to x86_64 if not specified by the user
+ARCH ?= x86_64
+
 # Nuke built-in implicit rules to speed up make and prevent weird behavior
 .SUFFIXES:
 
@@ -70,6 +70,7 @@ override CFLAGS += \
 
 # Preprocessor flags including your src/include folder for clean header resolution
 override CPPFLAGS := \
+    -I src/include/arch/$(ARCH) \
     -I src/include \
     -I src \
     $(CPPFLAGS) \
@@ -83,8 +84,12 @@ override NASMFLAGS += \
     -Wall
 
 # Critical Linker flags to enforce static freestanding layout using your linker script
+
+ifeq ($(ARCH),x86_64)
+    override LDFLAGS += -m elf_x86_64
+endif
+
 override LDFLAGS += \
-    -m elf_x86_64 \
     -nostdlib \
     -static \
     -z max-page-size=0x1000 \
@@ -94,18 +99,14 @@ override LDFLAGS += \
 # ==============================================================================
 # 3. AUTOMATIC FILE DETECTION (GLOBBING)
 # ==============================================================================
-# Automatically find all source files in the src/ tree
-override SRCFILES  := $(shell find -L src -type f 2>/dev/null | LC_ALL=C sort)
+override COMMON_SRC := $(shell find -L src/bootloader src/kernel src/drivers src/klib -type f 2>/dev/null | LC_ALL=C sort)
+override ARCH_SRC   := $(shell find -L src/arch/$(ARCH) -type f 2>/dev/null | LC_ALL=C sort)
+override SRCFILES   := $(COMMON_SRC) $(ARCH_SRC)
 override CFILES    := $(filter %.c,$(SRCFILES))
 override ASFILES   := $(filter %.S,$(SRCFILES))
 override NASMFILES := $(filter %.asm,$(SRCFILES))
-
-# Map discovered source files to their corresponding object files inside obj/
 override OBJ         := $(addprefix obj/,$(CFILES:.c=.c.o) $(ASFILES:.S=.S.o) $(NASMFILES:.asm=.asm.o))
 override HEADER_DEPS := $(addprefix obj/,$(CFILES:.c=.c.d) $(ASFILES:.S=.S.d))
-
-# Declare fake targets
-.PHONY: all clean run
 
 # ==============================================================================
 # 4. BUILD RULES (RECIPES)

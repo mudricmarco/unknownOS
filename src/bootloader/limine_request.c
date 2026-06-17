@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <bootloader/limine.h>
 #include <bootloader/limine_requests.h>
+#include <kernel/panic.h>
 
 // --- LIMINE PROTOCOL REVISIONS AND MARKERS ---
 __attribute__((used, section(".limine_requests")))
@@ -21,14 +22,16 @@ volatile struct limine_framebuffer_request framebuffer_request = {
     .revision = 0
 };
 
-// --- LIMINE INITIALIZATION CHECK ---
-bool limine_init_check(void) {
-    if(!LIMINE_BASE_REVISION_SUPPORTED(limine_base_revision) || !LIMINE_LOADED_BASE_REVISION_VALID(limine_base_revision) ) {
-        return false;
-    }
+__attribute__((used, section(".limine_requests")))
+volatile struct limine_memmap_request memmap_request = {
+    .id = LIMINE_MEMMAP_REQUEST_ID,
+    .revision = 0
+};
 
-    if (framebuffer_request.response == NULL || framebuffer_request.response->framebuffer_count < 1) {
-        return false;
+// --- LIMINE INITIALIZATION CHECK ---
+void limine_init(void) {
+    if(!LIMINE_BASE_REVISION_SUPPORTED(limine_base_revision) || !LIMINE_LOADED_BASE_REVISION_VALID(limine_base_revision) ) {
+        // If the base revision is not supported or not valid, launch a kernel panic in the serial console.
+        kernel_panic("LIMINE Init failed.");
     }
-    return true;
 }

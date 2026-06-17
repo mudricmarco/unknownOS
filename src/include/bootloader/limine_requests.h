@@ -5,4 +5,6 @@
 
 extern volatile struct limine_framebuffer_request framebuffer_request;
 
-bool limine_init_check(void);
+extern volatile struct limine_memmap_request memmap_request;
+
+void limine_init(void);

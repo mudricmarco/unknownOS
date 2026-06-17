@@ -38,21 +38,14 @@ void kernel_panic(const char *message) {
     serial_puts(message);
     serial_puts("\n\nSystem halted.");
 
-    if (limine_init_check()) {
-        screen_clear(COLOR_BLACK, true);
+    screen_clear(COLOR_BLACK, true);
 
-        kprint_default_scale("\n\n!!! KERNEL PANIC !!!\n", COLOR_RED, true);
-        kprint_default_scale("\n", COLOR_WHITE, true);
-        kprint_default_scale(message, COLOR_WHITE, true);
-        kprint_default_scale("\n\nSystem halted.", COLOR_RED, true);
+    kprintf(COLOR_WHITE, 2, true, "\n\n%C!!! KERNEL PANIC !!!\n\n%C%s\n\n%CSystem halted.", 
+            COLOR_RED, COLOR_WHITE, message, COLOR_RED);
 
-        //? Draw a sad face for a bit of personality during kernel panics.
-        draw_sad_face(COLOR_RED);
+    //? Draw a sad face for a bit of personality during kernel panics.
+    draw_sad_face(COLOR_RED);
 
-    } else if (is_running_on_qemu()) {
-        //! If we're running on QEMU, use the QEMU exit mechanism to signal a panic state (only for debugging purposes)
-        qemu_exit();
-    }
 
     hcf();
 }

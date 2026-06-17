@@ -1,9 +1,15 @@
+#include "kernel/panic.h"
 #include <drivers/screen/screen.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #include <klib/mem.h>
+#include <klib/math.h>
+#include <klib/string.h>
 #include <bootloader/limine.h>
+#include <bootloader/limine_requests.h>
+#include <kernel/panic.h>
 
 // Blinded configuration of blit32 bitmap font
 #define blit32_ARRAY_ONLY
@@ -65,8 +71,13 @@ void screen_flush(void) {
     }
 }
 
-void screen_init(struct limine_framebuffer* framebuffer) {
-    fb = framebuffer;
+void screen_init() {
+    if (framebuffer_request.response == NULL || framebuffer_request.response->framebuffer_count < 1) {
+        //? This message will only be printed to the serial console, as we don't have a framebuffer to display it on the screen.
+        kernel_panic("Failed to initialize screen: No valid framebuffer available.");
+    }
+
+    fb = framebuffer_request.response->framebuffers[0];
     screen_pitch_div_4 = fb->pitch / 4;
     
     memset((void*)backbuffer, 0, sizeof(backbuffer));
@@ -92,6 +103,7 @@ void screen_clear(uint32_t color, bool direct_vram) {
         }
     }
     reset_cursor();
+
     if (!direct_vram) {
         screen_flush();
     }
@@ -191,9 +203,55 @@ void kprint(const char *text, uint32_t color, int32_t scale, bool direct_vram) {
                              cursor_x, cursor_y, -1, single_char_str);
 
         cursor_x += cell_width;
+        
     }
+}
 
+// Formatted printing function that supports color changes, integers, and strings.
+void kprintf(uint32_t default_color, int32_t scale, bool direct_vram, const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+
+    uint32_t current_color = default_color;
+
+    for (size_t i = 0; fmt[i] != '\0'; i++) {
+        if (fmt[i] != '%') {
+            char c_str[2] = { fmt[i], '\0' };
+            kprint(c_str, current_color, scale, direct_vram); 
+            continue;
+        }
+
+        i++; 
+
+        switch (fmt[i]) {
+            case 'C': {
+                current_color = va_arg(args, uint32_t);
+                break;
+            }
+
+            case 'd': {
+                int64_t num = va_arg(args, int64_t); 
+                char str_buffer[64]; 
+                int_to_string(num, str_buffer); 
+                kprint(str_buffer, current_color, scale, direct_vram);
+                break;
+            }
+
+            case 's': {
+                char* str = va_arg(args, char*);
+                if (str == NULL) str = "(null)"; 
+                kprint(str, current_color, scale, direct_vram);
+                break;
+            }
+                    
+            default:
+                break;
+        }
+    }
+    
     if (!direct_vram) {
         screen_flush();
     }
+
+    va_end(args);
 }

@@ -12,7 +12,7 @@
 #include <klib/math.h>
 
 #define P2V(phys) ((void*)((uint64_t)(phys) + hhdm_offset))
-#define V2P(virt) ((uint64_t)(virt) - hhdm_offset))
+#define V2P(virt) ((uint64_t)(virt) - hhdm_offset)
 
 bool physical_memory_initialized = false;
 
@@ -68,10 +68,12 @@ void init_physical_memory(void) {
 
     uint64_t kernel_size = 0;
 
+    // Limine does not directly expose the loaded kernel physical end
+    // For now we assume the EXECUTABLE_AND_MODULES entry corresponds to the kernel image.
     for (uint64_t i = 0; i < memmap->entry_count; i++) {
         struct limine_memmap_entry *entry = memmap->entries[i];
 
-        if (entry->type == LIMINE_MEMMAP_EXECUTABLE_AND_MODULES) {
+        if (entry->type == LIMINE_MEMMAP_EXECUTABLE_AND_MODULES && entry->base == _kernel_start_phys) {
             kernel_size = entry->length;
             break;
         }
@@ -94,7 +96,7 @@ void init_physical_memory(void) {
         }
     }
 
-    pmm_total_pages = highest_address / 4096;
+    pmm_total_pages = (highest_address + 4095) / 4096;
     pmm_bitmap_size = pmm_total_pages / 8;
     if (pmm_total_pages % 8 != 0) {
         pmm_bitmap_size++;
@@ -227,6 +229,10 @@ bool pmm_free_page(void* phys_addr) {
 
     if (page >= pmm_total_pages) {
         kernel_panic("Attempted to free a physical page that is out of bounds of the physical memory bitmap");
+    }
+
+    if (!(pmm_bitmap[page / 8] & (1 << (page % 8)))) {
+        kernel_panic("Attempted to free a physical page that is already free");
     }
 
     bitmap_clear_page(page);

@@ -36,23 +36,6 @@ static int32_t cursor_y = DEFAULT_CURSOR_Y;
 
 #define TAB_SIZE 4
 
-struct limine_framebuffer* screen_get_fb(void) {
-    return fb;
-}
-
-void screen_set_cursor(int32_t x, int32_t y) {
-    cursor_x = x;
-    cursor_y = y;
-}
-
-int32_t screen_get_cursor_y(void) {
-    return cursor_y;
-}
-
-int32_t screen_get_cursor_x(void) {
-    return cursor_x;
-}
-
 // Helper function to reset cursor position to the top-left corner of the screen
 void reset_cursor(void) {
     cursor_x = DEFAULT_CURSOR_X;
@@ -71,18 +54,6 @@ void screen_flush(void) {
     }
 }
 
-void screen_init() {
-    if (framebuffer_request.response == NULL || framebuffer_request.response->framebuffer_count < 1) {
-        //? This message will only be printed to the serial console, as we don't have a framebuffer to display it on the screen.
-        kernel_panic("Failed to initialize screen: No valid framebuffer available.");
-    }
-
-    fb = framebuffer_request.response->framebuffers[0];
-    screen_pitch_div_4 = fb->pitch / 4;
-    
-    memset((void*)backbuffer, 0, sizeof(backbuffer));
-}
-
 // Method to set a pixel in the backbuffer
 void screen_put_pixel(size_t x, size_t y, uint32_t color, bool direct_vram) {
     if (fb == NULL || x >= fb->width || y >= fb->height) return;
@@ -92,20 +63,6 @@ void screen_put_pixel(size_t x, size_t y, uint32_t color, bool direct_vram) {
         *pixel_addr = color;
     } else {
         backbuffer[y * screen_pitch_div_4 + x] = color;
-    }
-}
-
-void screen_clear(uint32_t color, bool direct_vram) {
-    if (fb == NULL) return;
-    for (size_t y = 0; y < fb->height; y++) {
-        for (size_t x = 0; x < fb->width; x++) {
-            screen_put_pixel(x, y, color, direct_vram);
-        }
-    }
-    reset_cursor();
-
-    if (!direct_vram) {
-        screen_flush();
     }
 }
 
@@ -243,6 +200,21 @@ void kprintf(uint32_t default_color, int32_t scale, bool direct_vram, const char
                 kprint(str, current_color, scale, direct_vram);
                 break;
             }
+
+            // TODO: Refactor this into a more efficient conversion
+            //? For now, this is a simple and straightforward implementation.
+            case 'x': {
+                uint64_t num = va_arg(args, uint64_t); 
+                char hex_buffer[32]; 
+                int_to_hex_string(num, hex_buffer); 
+                kprint(hex_buffer, current_color, scale, direct_vram);
+                break;
+            }
+
+            case '%': {
+                kprint("%", current_color, scale, direct_vram);
+                break;
+            }
                     
             default:
                 break;
@@ -254,4 +226,51 @@ void kprintf(uint32_t default_color, int32_t scale, bool direct_vram, const char
     }
 
     va_end(args);
+}
+
+struct limine_framebuffer* screen_get_fb(void) {
+    return fb;
+}
+
+bool is_screen_initialized(void) {
+    return fb != NULL;
+}
+
+void screen_set_cursor(int32_t x, int32_t y) {
+    cursor_x = x;
+    cursor_y = y;
+}
+
+int32_t screen_get_cursor_y(void) {
+    return cursor_y;
+}
+
+int32_t screen_get_cursor_x(void) {
+    return cursor_x;
+}
+
+void screen_init() {
+    if (framebuffer_request.response == NULL || framebuffer_request.response->framebuffer_count < 1) {
+        //? This message will only be printed to the serial console, as we don't have a framebuffer to display it on the screen.
+        kernel_panic("Failed to initialize screen: No valid framebuffer available.");
+    }
+
+    fb = framebuffer_request.response->framebuffers[0];
+    screen_pitch_div_4 = fb->pitch / 4;
+    
+    memset((void*)backbuffer, 0, sizeof(backbuffer));
+}
+
+void screen_clear(uint32_t color, bool direct_vram) {
+    if (fb == NULL) return;
+    for (size_t y = 0; y < fb->height; y++) {
+        for (size_t x = 0; x < fb->width; x++) {
+            screen_put_pixel(x, y, color, direct_vram);
+        }
+    }
+    reset_cursor();
+
+    if (!direct_vram) {
+        screen_flush();
+    }
 }

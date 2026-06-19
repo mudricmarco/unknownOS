@@ -43,3 +43,5 @@ static inline size_t gibibyte_to_mebibyte(size_t gibibytes) {
     return gibibytes * 1024;
 }
 
+
+char* int_to_hex_string(uint64_t value, char* buffer);

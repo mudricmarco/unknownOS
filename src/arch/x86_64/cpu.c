@@ -12,7 +12,8 @@ void hcf(void) {
     }
 }
 
-// Debug Function to create a delay loop (not precise and slow, but sufficient for simple timing)
+//! A shitty delay function that just loops for a given count. 
+//! This is not a precise timing mechanism and should be replaced with a proper timer-based delay in the future.
 void delay(uint64_t count) {
     volatile uint64_t i;
     for (i = 0; i < count; i++) {

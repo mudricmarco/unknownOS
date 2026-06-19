@@ -20,4 +20,6 @@ void kernel_init(void) {
     init_physical_memory();
     kprintf_default("[OK]\n");
     kprintf_default("   -> Physical memory available: %d MB\n", byte_to_mebibyte(get_total_memory_size()));
+    kprintf_default("   -> HHDM offset: %x\n", get_hhdm_offset());
+    kprintf_default("   -> Kernel physical memory range: %x - %x\n", get_kernel_start_phys(), get_kernel_end_phys());
 }

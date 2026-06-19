@@ -14,7 +14,3 @@ static inline void disable_interrupts(void) {
 void hcf(void);
 
 void delay(uint64_t count);
-
-bool is_running_on_qemu(void);
-
-void qemu_exit(void);

@@ -14,6 +14,9 @@
 #define P2V(phys) ((void*)((uint64_t)(phys) + hhdm_offset))
 #define V2P(virt) ((uint64_t)(virt) - hhdm_offset)
 
+#define ALIGN_UP(val, align)   (((val) + (align) - 1) & ~((align) - 1))
+#define ALIGN_DOWN(val, align) ((val) & ~((align) - 1))
+
 bool physical_memory_initialized = false;
 
 uint64_t hhdm_offset = 0;
@@ -21,6 +24,8 @@ uint64_t hhdm_offset = 0;
 uint8_t* pmm_bitmap = NULL;
 uint64_t pmm_bitmap_size = 0;
 uint64_t pmm_total_pages = 0;
+
+uint64_t pmm_last_free_index = 0;
 
 uint64_t _kernel_start_phys = 0;
 uint64_t _kernel_end_phys = 0;
@@ -134,40 +139,44 @@ void init_physical_memory(void) {
         struct limine_memmap_entry *entry = memmap->entries[i];
 
         if (entry->type == LIMINE_MEMMAP_USABLE) {
-            uint64_t start_page = entry->base / 4096;
-            uint64_t end_page = (entry->base + entry->length) / 4096;
+            uint64_t aligned_base = ALIGN_UP(entry->base, 4096);
+            uint64_t aligned_end = ALIGN_DOWN(entry->base + entry->length, 4096);
+
+            if (aligned_base >= aligned_end) continue;
+
+            uint64_t start_page = aligned_base / 4096;
+            uint64_t end_page = aligned_end / 4096;
 
             uint64_t page = start_page;
 
-            while (page < end_page && (page % 64 != 0)) {
-                bitmap_clear_page(page);
-                page++;
-            }
-            
-            while (page + 64 <= end_page) {
-                bitmap64[page / 64] = 0x0000000000000000;
-                page += 64;
+            uint64_t next_aligned_page = ALIGN_UP(start_page, 64);
+            if (next_aligned_page > end_page) {
+                next_aligned_page = end_page;
             }
 
-            while (page < end_page) {
+            for (; page < next_aligned_page; page++) {
                 bitmap_clear_page(page);
-                page++;
+            }
+            
+            uint64_t bulk_end_page = ALIGN_DOWN(end_page, 64);
+            for (; page < bulk_end_page; page += 64) {
+                bitmap64[page / 64] = 0x0000000000000000;
+            }
+
+            for (; page < end_page; page++) {
+                bitmap_clear_page(page);
             }
         }
     }
 
-    uint64_t kernel_start_page = _kernel_start_phys / 4096;
-    uint64_t kernel_end_page = _kernel_end_phys / 4096;
-    if (_kernel_end_phys % 4096 != 0) {
-        kernel_end_page++;
-    }
+    uint64_t kernel_start_page = ALIGN_DOWN(_kernel_start_phys, 4096) / 4096;
+    uint64_t kernel_end_page = ALIGN_UP(_kernel_end_phys, 4096) / 4096;
     for (uint64_t page = kernel_start_page; page < kernel_end_page; page++) {
         bitmap_set_page(page);
     }
 
-    uint64_t bitmap_start_page = bitmap_phys_addr / 4096;
-    uint64_t bitmap_end_page = (bitmap_phys_addr + pmm_bitmap_size) / 4096;
-    if (pmm_bitmap_size % 4096 != 0) bitmap_end_page++;
+    uint64_t bitmap_start_page = ALIGN_DOWN(bitmap_phys_addr, 4096) / 4096;
+    uint64_t bitmap_end_page = ALIGN_UP(bitmap_phys_addr + pmm_bitmap_size, 4096) / 4096;
 
     for (uint64_t page = bitmap_start_page; page < bitmap_end_page; page++) {
         bitmap_set_page(page);
@@ -199,7 +208,7 @@ void* pmm_alloc_page(void) {
     uint64_t* bitmap64 = (uint64_t*)pmm_bitmap;
     uint64_t size64 = pmm_bitmap_size / 8;
 
-    for (uint64_t i = 0; i < size64; i++) {
+    for (uint64_t i = pmm_last_free_index; i < size64; i++) {
         if (bitmap64[i] != 0xFFFFFFFFFFFFFFFF) {
             
             uint64_t bit = __builtin_ctzll(~bitmap64[i]);
@@ -208,6 +217,7 @@ void* pmm_alloc_page(void) {
             if (page >= pmm_total_pages) return NULL;
 
             bitmap_set_page(page);
+            pmm_last_free_index = i;
             return (void*)(page * 4096);
         }
     }
@@ -236,5 +246,35 @@ bool pmm_free_page(void* phys_addr) {
     }
 
     bitmap_clear_page(page);
+
+    uint64_t index64 = page / 64;
+    if (index64 < pmm_last_free_index) {
+        pmm_last_free_index = index64;
+    }
+
     return true;
+}
+
+// Reclaim memory marked as reclaimable by the bootloader (for when i change the cr3 page table)
+void pmm_reclaim_bootloader_memory(void) {
+    if (!physical_memory_initialized) {
+        return;
+    }
+
+    struct limine_memmap_response *memmap = memmap_request.response;
+    
+    for (uint64_t i = 0; i < memmap->entry_count; i++) {
+        struct limine_memmap_entry *entry = memmap->entries[i];
+
+        if (entry->type == LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE) {
+            uint64_t start_page = entry->base / 4096;
+            uint64_t end_page = (entry->base + entry->length) / 4096;
+
+            for (uint64_t page = start_page; page < end_page; page++) {
+                bitmap_clear_page(page);
+            }
+        }
+    }
+    
+    pmm_last_free_index = 0;
 }

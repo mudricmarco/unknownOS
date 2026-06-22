@@ -4,7 +4,7 @@ ARCH ?= x86_64
 # Nuke built-in implicit rules to speed up make and prevent weird behavior
 .SUFFIXES:
 
-# The name of your final kernel binary and output ISO image
+# The name of the final kernel binary and output ISO image
 override OUTPUT := kernel.elf
 ISO_IMAGE := unknownOS.iso
 
@@ -68,7 +68,7 @@ override CFLAGS += \
     -mno-red-zone \
     -mcmodel=kernel
 
-# Preprocessor flags including your src/include folder for clean header resolution
+# Preprocessor flags including the src/include folder for clean header resolution
 override CPPFLAGS := \
     -I src/include/arch/$(ARCH) \
     -I src/include \
@@ -83,7 +83,7 @@ override NASMFLAGS += \
     $(patsubst -g,-g -F dwarf,$(NASMFLAGS)) \
     -Wall
 
-# Critical Linker flags to enforce static freestanding layout using your linker script
+# Critical Linker flags to enforce static freestanding layout using the linker script
 
 ifeq ($(ARCH),x86_64)
     override LDFLAGS += -m elf_x86_64
@@ -139,7 +139,7 @@ obj/%.asm.o: %.asm
 # ==============================================================================
 # 5. ISO CREATION AND BOOTLOADER STAGING
 # ==============================================================================
-# Build the final bootable ISO image containing Limine and your kernel
+# Build the final bootable ISO image containing Limine and the kernel
 $(ISO_IMAGE): $(OUTPUT) limine.conf
 	# Ensure the native limine host tool is compiled on Fedora
 	make -C limine
@@ -149,7 +149,7 @@ $(ISO_IMAGE): $(OUTPUT) limine.conf
 	mkdir -p iso_root/boot/limine
 	mkdir -p iso_root/EFI/BOOT
 	
-	# Stage your system files
+	# Stage the system files
 	cp -v $(OUTPUT) iso_root/boot/
 	cp -v limine.conf iso_root/boot/limine/
 	

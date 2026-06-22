@@ -8,7 +8,6 @@
 #include <klib/string.h>
 #include <klib/math.h>
 #include <kernel/init.h>
-#include <kernel/memory/pmm.h>
 
 #define kversion "0.1.0"
 

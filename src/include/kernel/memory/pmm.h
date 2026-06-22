@@ -14,3 +14,5 @@ uint64_t get_hhdm_offset(void);
 
 void* pmm_alloc_page(void);
 bool pmm_free_page(void* page);
+
+void pmm_reclaim_bootloader_memory(void);

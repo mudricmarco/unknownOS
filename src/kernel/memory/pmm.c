@@ -10,6 +10,7 @@
 #include <kernel/memory/pmm.h>
 #include <kernel/panic.h>
 #include <klib/math.h>
+#include <arch/memory.h>
 
 #define P2V(phys) ((void*)((uint64_t)(phys) + hhdm_offset))
 #define V2P(virt) ((uint64_t)(virt) - hhdm_offset)
@@ -29,6 +30,8 @@ uint64_t pmm_last_free_index = 0;
 
 uint64_t _kernel_start_phys = 0;
 uint64_t _kernel_end_phys = 0;
+
+static uint64_t pmm_bootloader_cr3 = 0;
 
 bool is_physical_memory_initialized(void) {
     return physical_memory_initialized;
@@ -211,6 +214,8 @@ void init_physical_memory(void) {
     uint64_t bitmap_phys_addr = V2P(pmm_bitmap);
     pmm_protect_critical_structures(bitmap_phys_addr);
 
+    pmm_bootloader_cr3 = get_current_cr3();
+
     physical_memory_initialized = true;
 }
 
@@ -288,6 +293,10 @@ bool pmm_free_page(void* phys_addr) {
 void pmm_reclaim_bootloader_memory(void) {
     if (!physical_memory_initialized) {
         return;
+    }
+
+    if (get_current_cr3() == pmm_bootloader_cr3) {
+        kernel_panic("Safety Violation: Attempted to reclaim bootloader memory while its page tables are still active in CR3");
     }
 
     struct limine_memmap_response *memmap = memmap_request.response;

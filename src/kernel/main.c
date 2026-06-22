@@ -8,6 +8,7 @@
 #include <klib/string.h>
 #include <klib/math.h>
 #include <kernel/init.h>
+#include <kernel/memory/pmm.h>
 
 #define kversion "0.1.0"
 
@@ -36,6 +37,6 @@ void kmain(void) {
             " Kernel Version: %C%s%C\n"
             " System is ready.\n",
             COLOR_YELLOW_ORANGE, kversion, COLOR_WHITE);
-
+            
     hcf();
 }

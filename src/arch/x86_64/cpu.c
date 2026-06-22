@@ -5,6 +5,14 @@
 #include <klib/string.h>
 #include "arch/cpu.h"
 
+void enable_interrupts(void) {
+    asm volatile ("sti");
+}
+
+void disable_interrupts(void) {
+    asm volatile ("cli");
+}
+
 // Halt and Catch Fire - stop the CPU in a low-power halted loop
 void hcf(void) {
     for (;;) {

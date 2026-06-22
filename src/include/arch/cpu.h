@@ -3,13 +3,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-static inline void enable_interrupts(void) {
-    asm volatile ("sti");
-}
+void enable_interrupts(void);
 
-static inline void disable_interrupts(void) {
-    asm volatile ("cli");
-}
+void disable_interrupts(void);
 
 void hcf(void);
 

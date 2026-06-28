@@ -14,9 +14,10 @@ void kernel_init(void) {
     // 1. Limine
     limine_init();
 
-    init_physical_memory();
+    // 2. Physical Memory Manager
+    init_pmm();
 
-    // 2. Screen
+    // 3. Screen
     screen_init();
     kprintf_default("Initializing screen driver... ");
     kprintf_default("[OK]\n");

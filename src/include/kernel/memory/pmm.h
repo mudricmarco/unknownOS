@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 bool is_physical_memory_initialized(void);
-void init_physical_memory(void);
+void init_pmm(void);
 
 size_t get_total_memory_size(void);
 uint64_t get_kernel_start_phys(void);

@@ -5,21 +5,23 @@
 #include <drivers/screen/screen.h>
 #include <kernel/memory/pmm.h>
 #include <kernel/init.h>
+#include <stdbool.h>
 
 void kernel_init(void) {
+
+    set_auto_flush(false);
+
     // 1. Limine
     limine_init();
+
+    init_physical_memory();
 
     // 2. Screen
     screen_init();
     kprintf_default("Initializing screen driver... ");
     kprintf_default("[OK]\n");
 
-    // 3. PMM
-    kprintf_default("Initializing memory manager.. ");
-    init_physical_memory();
-    kprintf_default("[OK]\n");
-    kprintf_default("   -> Physical memory available: %d MB\n", byte_to_mebibyte(get_total_memory_size()));
-    kprintf_default("   -> HHDM offset: %x\n", get_hhdm_offset());
-    kprintf_default("   -> Kernel physical memory range: %x - %x\n", get_kernel_start_phys(), get_kernel_end_phys());
+    screen_flush();
+
+    set_auto_flush(true);
 }

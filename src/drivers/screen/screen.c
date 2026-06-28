@@ -10,6 +10,7 @@
 #include <bootloader/limine.h>
 #include <bootloader/limine_requests.h>
 #include <kernel/panic.h>
+#include <kernel/memory/pmm.h>
 
 // Blinded configuration of blit32 bitmap font
 #define blit32_ARRAY_ONLY
@@ -20,10 +21,7 @@
 static struct limine_framebuffer* fb = NULL;
 static size_t screen_pitch_div_4 = 0;
 
-// TODO: Implement a dynamic backbuffer that matches the actual framebuffer size instead of a fixed 1920x1080 buffer. This will allow support for higher resolutions and prevent potential out-of-bounds access on smaller screens.
-#define MAX_WIDTH  1920
-#define MAX_HEIGHT 1080
-static uint32_t backbuffer[MAX_WIDTH * MAX_HEIGHT];
+static uint32_t* backbuffer = NULL;
 
 #define DEFAULT_CURSOR_X 10
 #define DEFAULT_CURSOR_Y 10
@@ -35,6 +33,17 @@ static int32_t cursor_y = DEFAULT_CURSOR_Y;
 #define blit32_FONT_HEIGHT blit32_HEIGHT
 
 #define TAB_SIZE 4
+
+static bool auto_flush_enabled = true;
+
+void set_auto_flush(bool enable) {
+    auto_flush_enabled = enable;
+}
+
+bool get_auto_flush() {
+    return auto_flush_enabled;
+}
+
 
 // Helper function to reset cursor position to the top-left corner of the screen
 void reset_cursor(void) {
@@ -170,22 +179,35 @@ void kprintf(uint32_t default_color, int32_t scale, bool direct_vram, const char
     va_start(args, fmt);
 
     uint32_t current_color = default_color;
+    
+    char chunk_buffer[256];
+    size_t chunk_idx = 0;
 
     for (size_t i = 0; fmt[i] != '\0'; i++) {
         if (fmt[i] != '%') {
-            char c_str[2] = { fmt[i], '\0' };
-            kprint(c_str, current_color, scale, direct_vram); 
+            chunk_buffer[chunk_idx++] = fmt[i];
+            
+            if (chunk_idx == sizeof(chunk_buffer) - 1) {
+                chunk_buffer[chunk_idx] = '\0';
+                kprint(chunk_buffer, current_color, scale, direct_vram);
+                chunk_idx = 0;
+            }
             continue;
         }
 
-        i++; 
+        if (chunk_idx > 0) {
+            chunk_buffer[chunk_idx] = '\0';
+            kprint(chunk_buffer, current_color, scale, direct_vram);
+            chunk_idx = 0;
+        }
+
+        i++;
 
         switch (fmt[i]) {
             case 'C': {
                 current_color = va_arg(args, uint32_t);
                 break;
             }
-
             case 'd': {
                 int64_t num = va_arg(args, int64_t); 
                 char str_buffer[64]; 
@@ -193,16 +215,12 @@ void kprintf(uint32_t default_color, int32_t scale, bool direct_vram, const char
                 kprint(str_buffer, current_color, scale, direct_vram);
                 break;
             }
-
             case 's': {
                 char* str = va_arg(args, char*);
                 if (str == NULL) str = "(null)"; 
                 kprint(str, current_color, scale, direct_vram);
                 break;
             }
-
-            // TODO: Refactor this into a more efficient conversion
-            //? For now, this is a simple and straightforward implementation.
             case 'x': {
                 uint64_t num = va_arg(args, uint64_t); 
                 char hex_buffer[32]; 
@@ -210,18 +228,21 @@ void kprintf(uint32_t default_color, int32_t scale, bool direct_vram, const char
                 kprint(hex_buffer, current_color, scale, direct_vram);
                 break;
             }
-
             case '%': {
                 kprint("%", current_color, scale, direct_vram);
                 break;
             }
-                    
             default:
                 break;
         }
     }
     
-    if (!direct_vram) {
+    if (chunk_idx > 0) {
+        chunk_buffer[chunk_idx] = '\0';
+        kprint(chunk_buffer, current_color, scale, direct_vram);
+    }
+    
+    if (!direct_vram && auto_flush_enabled) {
         screen_flush();
     }
 
@@ -256,21 +277,54 @@ void screen_init() {
     }
 
     fb = framebuffer_request.response->framebuffers[0];
+
+    // -- Check if the framebuffer meets the kernel's requirements --
+    if (fb->bpp != 32) {
+        kernel_panic("Unsupported BPP. Kernel requires exactly 32 bits per pixel.");
+    }
+    if (fb->memory_model != LIMINE_FRAMEBUFFER_RGB) {
+        kernel_panic("Unsupported memory model. Kernel requires RGB/RGBA framebuffer.");
+    }
+    if (fb->red_mask_size != 8 || fb->green_mask_size != 8 || fb->blue_mask_size != 8) {
+        kernel_panic("Unexpected color mask size.");
+    }
+
     screen_pitch_div_4 = fb->pitch / 4;
     
-    memset((void*)backbuffer, 0, sizeof(backbuffer));
+    uint64_t total_bytes = fb->pitch * fb->height;
+    uint64_t pages_needed = (total_bytes + 4095) / 4096;
+    
+    void* phys_buffer = pmm_alloc_pages(pages_needed);
+
+    if (phys_buffer == NULL) {
+        kernel_panic("Failed to initialize screen: Unable to allocate backbuffer for screen");
+    }
+
+    backbuffer = (uint32_t*)((uint64_t)phys_buffer + get_hhdm_offset());
+    
+    memset((void*)backbuffer, 0, total_bytes);
 }
 
 void screen_clear(uint32_t color, bool direct_vram) {
     if (fb == NULL) return;
-    for (size_t y = 0; y < fb->height; y++) {
-        for (size_t x = 0; x < fb->width; x++) {
-            screen_put_pixel(x, y, color, direct_vram);
+
+    uint32_t* target = direct_vram ? (uint32_t*)fb->address : backbuffer;
+
+    if (color == 0) {
+        memset((void*)target, 0, fb->pitch * fb->height);
+    } 
+    else {
+        for (size_t y = 0; y < fb->height; y++) {
+            uint32_t* line = (uint32_t*)((uint8_t*)target + (y * fb->pitch));
+            for (size_t x = 0; x < fb->width; x++) {
+                line[x] = color;
+            }
         }
     }
+
     reset_cursor();
 
-    if (!direct_vram) {
+    if (!direct_vram && auto_flush_enabled) {
         screen_flush();
     }
 }

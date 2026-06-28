@@ -23,6 +23,8 @@ void kmain(void) {
     // ! That's a very bad hack, but it works for now. We should implement a proper delay mechanism in the future.
     delay(900000000); // Delay to allow users to read the boot messages before clearing the screen
 
+    set_auto_flush(false);
+
     screen_clear(COLOR_BLACK, DIRECT_VRAM_WRITE);
 
     kprintf_default_scale(COLOR_AQUA, DIRECT_VRAM_WRITE,
@@ -37,6 +39,10 @@ void kmain(void) {
             " Kernel Version: %C%s%C\n"
             " System is ready.\n",
             COLOR_YELLOW_ORANGE, kversion, COLOR_WHITE);
+
+    screen_flush();
+
+    set_auto_flush(true);
             
     hcf();
 }

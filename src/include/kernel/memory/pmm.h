@@ -13,6 +13,9 @@ uint64_t get_kernel_end_phys(void);
 uint64_t get_hhdm_offset(void);
 
 void* pmm_alloc_page(void);
+void* pmm_alloc_pages(size_t count);
+
 bool pmm_free_page(void* page);
+bool pmm_free_pages(void* phys_addr, size_t count);
 
 void pmm_reclaim_bootloader_memory(void);

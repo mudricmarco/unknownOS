@@ -8,6 +8,9 @@
 
 #define DEFAULT_blit32_TEXT_SCALE 2
 
+void set_auto_flush(bool enable);
+bool get_auto_flush(void);
+
 void reset_cursor(void);
 
 void screen_flush(void);

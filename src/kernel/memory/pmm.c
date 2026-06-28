@@ -242,24 +242,83 @@ void* pmm_alloc_page(void) {
     uint64_t* bitmap64 = (uint64_t*)pmm_bitmap;
     uint64_t size64 = pmm_bitmap_size / 8;
 
-    for (uint64_t i = pmm_last_free_index; i < size64; i++) {
-        if (bitmap64[i] != 0xFFFFFFFFFFFFFFFF) {
-            
-            uint64_t bit = __builtin_ctzll(~bitmap64[i]);
-            
-            uint64_t page = i * 64 + bit;
-            if (page >= pmm_total_pages) return NULL;
+    uint64_t first_index = pmm_last_free_index;
+    if (first_index >= size64) {
+        first_index = 0;
+    }
 
-            bitmap_set_page(page);
-            pmm_last_free_index = i;
-            return (void*)(page * 4096);
+    for (uint64_t pass = 0; pass < 2; pass++) {
+        uint64_t begin = (pass == 0) ? first_index : 0;
+        uint64_t end = (pass == 0) ? size64 : first_index;
+
+        for (uint64_t i = begin; i < end; i++) {
+            if (bitmap64[i] != 0xFFFFFFFFFFFFFFFF) {
+                uint64_t bit = __builtin_ctzll(~bitmap64[i]);
+                uint64_t page = i * 64 + bit;
+                if (page >= pmm_total_pages) {
+                    continue;
+                }
+
+                bitmap_set_page(page);
+                pmm_last_free_index = i;
+                return (void*)(page * 4096);
+            }
         }
     }
+
+    return NULL;
+}
+
+void* pmm_alloc_pages(size_t count) {
+    if (count == 0) return NULL;
+    if (count == 1) return pmm_alloc_page();
+
+    if (!physical_memory_initialized) {
+        kernel_panic("Attempted to allocate physical pages before PMM initialization");
+    }
+
+    uint64_t first_page = pmm_last_free_index * 64;
+    if (first_page >= pmm_total_pages) {
+        first_page = 0;
+    }
+
+    size_t consecutive_free = 0;
+    uint64_t start_page = 0;
+
+    for (uint64_t pass = 0; pass < 2; pass++) {
+        uint64_t begin = (pass == 0) ? first_page : 0;
+        uint64_t end = (pass == 0) ? pmm_total_pages : first_page;
+
+        for (uint64_t page = begin; page < end; page++) {
+            bool is_occupied = (pmm_bitmap[page / 8] & (1 << (page % 8))) != 0;
+
+            if (!is_occupied) {
+                if (consecutive_free == 0) {
+                    start_page = page;
+                }
+                consecutive_free++;
+
+                if (consecutive_free == count) {
+                    for (uint64_t p = start_page; p < start_page + count; p++) {
+                        bitmap_set_page(p);
+                    }
+
+                    pmm_last_free_index = (start_page + count) / 64;
+                    return (void*)(start_page * 4096);
+                }
+            } else {
+                consecutive_free = 0;
+            }
+        }
+
+        consecutive_free = 0;
+    }
+
     return NULL;
 }
 
 bool pmm_free_page(void* phys_addr) {
-    if (!physical_memory_initialized) {
+    if (!physical_memory_initialized || phys_addr == NULL) {
         return false;
     }
 
@@ -289,6 +348,37 @@ bool pmm_free_page(void* phys_addr) {
     return true;
 }
 
+bool pmm_free_pages(void* phys_addr, size_t count) {
+    if (!physical_memory_initialized || phys_addr == NULL || count == 0) {
+        return false;
+    }
+
+    uint64_t addr = (uint64_t)phys_addr;
+    if (addr % 4096 != 0) {
+        kernel_panic("Attempted to free a physical page that is not aligned to 4KB");
+    }
+
+    uint64_t start_page = addr / 4096;
+
+    if (start_page + count > pmm_total_pages) {
+        kernel_panic("Attempted to free pages out of bitmap bounds");
+    }
+
+    for (uint64_t page = start_page; page < start_page + count; page++) {
+        if (!(pmm_bitmap[page / 8] & (1 << (page % 8)))) {
+            kernel_panic("Attempted to free a physical page that is already free");
+        }
+        bitmap_clear_page(page);
+    }
+
+    uint64_t index64 = start_page / 64;
+    if (index64 < pmm_last_free_index) {
+        pmm_last_free_index = index64;
+    }
+
+    return true;
+}
+
 // Reclaim memory marked as reclaimable by the bootloader (for when i change the cr3 page table)
 void pmm_reclaim_bootloader_memory(void) {
     if (!physical_memory_initialized) {
@@ -305,8 +395,15 @@ void pmm_reclaim_bootloader_memory(void) {
         struct limine_memmap_entry *entry = memmap->entries[i];
 
         if (entry->type == LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE) {
-            uint64_t start_page = entry->base / 4096;
-            uint64_t end_page = (entry->base + entry->length) / 4096;
+            uint64_t aligned_base = ALIGN_DOWN(entry->base, 4096);
+            uint64_t aligned_end = ALIGN_UP(entry->base + entry->length, 4096);
+
+            uint64_t start_page = aligned_base / 4096;
+            uint64_t end_page = aligned_end / 4096;
+
+            if (end_page > pmm_total_pages) {
+                end_page = pmm_total_pages;
+            }
 
             for (uint64_t page = start_page; page < end_page; page++) {
                 bitmap_clear_page(page);

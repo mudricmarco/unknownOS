@@ -173,80 +173,140 @@ void kprint(const char *text, uint32_t color, int32_t scale, bool direct_vram) {
     }
 }
 
-// Formatted printing function that supports color changes, integers, and strings.
-void kprintf(uint32_t default_color, int32_t scale, bool direct_vram, const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-
-    uint32_t current_color = default_color;
+// Helper function to format a string into a buffer using a va_list of arguments. Used by kprintf for formatted printing
+// It is faster than kprintf because it doesn't call kprint for each character, but instead formats the entire string into a buffer first
+int kvsnprintf(char* buf, size_t size, const char* fmt, va_list args) {
+    size_t idx = 0;
     
-    char chunk_buffer[256];
-    size_t chunk_idx = 0;
-
-    for (size_t i = 0; fmt[i] != '\0'; i++) {
+    for (size_t i = 0; fmt[i] != '\0' && idx < size - 1; i++) {
         if (fmt[i] != '%') {
-            chunk_buffer[chunk_idx++] = fmt[i];
-            
-            if (chunk_idx == sizeof(chunk_buffer) - 1) {
-                chunk_buffer[chunk_idx] = '\0';
-                kprint(chunk_buffer, current_color, scale, direct_vram);
-                chunk_idx = 0;
-            }
+            buf[idx++] = fmt[i];
             continue;
-        }
-
-        if (chunk_idx > 0) {
-            chunk_buffer[chunk_idx] = '\0';
-            kprint(chunk_buffer, current_color, scale, direct_vram);
-            chunk_idx = 0;
         }
 
         i++;
 
         switch (fmt[i]) {
-            case 'C': {
-                current_color = va_arg(args, uint32_t);
-                break;
-            }
             case 'd': {
-                int64_t num = va_arg(args, int64_t); 
-                char str_buffer[64]; 
-                int_to_string(num, str_buffer); 
-                kprint(str_buffer, current_color, scale, direct_vram);
+                int64_t num = va_arg(args, int64_t);
+                char str_buffer[64];
+                int_to_string(num, str_buffer);
+                for (size_t j = 0; str_buffer[j] != '\0' && idx < size - 1; j++) {
+                    buf[idx++] = str_buffer[j];
+                }
                 break;
             }
             case 's': {
                 char* str = va_arg(args, char*);
-                if (str == NULL) str = "(null)"; 
-                kprint(str, current_color, scale, direct_vram);
+                if (str == NULL) str = "(null)";
+                for (size_t j = 0; str[j] != '\0' && idx < size - 1; j++) {
+                    buf[idx++] = str[j];
+                }
                 break;
             }
             case 'x': {
-                uint64_t num = va_arg(args, uint64_t); 
-                char hex_buffer[32]; 
-                int_to_hex_string(num, hex_buffer); 
-                kprint(hex_buffer, current_color, scale, direct_vram);
+                uint64_t num = va_arg(args, uint64_t);
+                char hex_buffer[32];
+                int_to_hex_string(num, hex_buffer);
+                for (size_t j = 0; hex_buffer[j] != '\0' && idx < size - 1; j++) {
+                    buf[idx++] = hex_buffer[j];
+                }
                 break;
             }
             case '%': {
-                kprint("%", current_color, scale, direct_vram);
+                buf[idx++] = '%';
                 break;
             }
             default:
                 break;
         }
     }
-    
-    if (chunk_idx > 0) {
-        chunk_buffer[chunk_idx] = '\0';
-        kprint(chunk_buffer, current_color, scale, direct_vram);
+
+    buf[idx] = '\0';
+    return idx;
+}
+
+// Helper function to consume format specifiers and their corresponding arguments from a va_list without printing them
+static void consume_format_args(const char* fmt, va_list args) {
+    for (size_t i = 0; fmt[i] != '\0'; i++) {
+        if (fmt[i] != '%') {
+            continue;
+        }
+
+        i++;
+
+        switch (fmt[i]) {
+            case 'd': {
+                (void)va_arg(args, int64_t);
+                break;
+            }
+            case 's': {
+                (void)va_arg(args, char*);
+                break;
+            }
+            case 'x': {
+                (void)va_arg(args, uint64_t);
+                break;
+            }
+            case '%':
+            default:
+                break;
+        }
     }
-    
-    if (!direct_vram && auto_flush_enabled) {
-        screen_flush();
+}
+
+// Helper function to flush a segment of formatted text to the screen
+static void flush_formatted_segment(const char* segment_start, size_t segment_len, uint32_t color, int32_t scale, bool direct_vram, va_list* args) {
+    if (segment_len == 0) return;
+
+    char segment_fmt[1024];
+    char segment_out[1024];
+
+    if (segment_len >= sizeof(segment_fmt)) {
+        segment_len = sizeof(segment_fmt) - 1;
+    }
+
+    for (size_t i = 0; i < segment_len; i++) {
+        segment_fmt[i] = segment_start[i];
+    }
+    segment_fmt[segment_len] = '\0';
+
+    va_list segment_args;
+    va_copy(segment_args, *args);
+    kvsnprintf(segment_out, sizeof(segment_out), segment_fmt, segment_args);
+    va_end(segment_args);
+
+    kprint(segment_out, color, scale, direct_vram);
+    consume_format_args(segment_fmt, *args);
+}
+
+// Formatted printing function
+void kprintf(uint32_t default_color, int32_t scale, bool direct_vram, const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+
+    uint32_t current_color = default_color;
+    const char* segment_start = fmt;
+
+    for (size_t i = 0; ; i++) {
+        if (fmt[i] == '\0') {
+            flush_formatted_segment(segment_start, (size_t)(fmt + i - segment_start), current_color, scale, direct_vram, &args);
+            break;
+        }
+
+        if (fmt[i] == '%' && fmt[i + 1] == 'C') {
+            flush_formatted_segment(segment_start, (size_t)(fmt + i - segment_start), current_color, scale, direct_vram, &args);
+            i++;
+            current_color = va_arg(args, uint32_t);
+            segment_start = fmt + i + 1;
+        }
     }
 
     va_end(args);
+
+    if (!direct_vram && auto_flush_enabled) {
+        screen_flush();
+    }
 }
 
 struct limine_framebuffer* screen_get_fb(void) {
@@ -309,16 +369,30 @@ void screen_clear(uint32_t color, bool direct_vram) {
     if (fb == NULL) return;
 
     uint32_t* target = direct_vram ? (uint32_t*)fb->address : backbuffer;
+    uint64_t total_bytes = fb->pitch * fb->height;
 
     if (color == 0) {
-        memset((void*)target, 0, fb->pitch * fb->height);
+        memset((void*)target, 0, total_bytes);
     } 
     else {
-        for (size_t y = 0; y < fb->height; y++) {
-            uint32_t* line = (uint32_t*)((uint8_t*)target + (y * fb->pitch));
-            for (size_t x = 0; x < fb->width; x++) {
-                line[x] = color;
-            }
+        uint64_t color64 = ((uint64_t)color << 32) | color;
+        uint64_t* target64 = (uint64_t*)target;
+        size_t total_words = total_bytes / 8;
+
+        size_t i = 0;
+        while (total_words >= 4) {
+            target64[i]     = color64;
+            target64[i + 1] = color64;
+            target64[i + 2] = color64;
+            target64[i + 3] = color64;
+            i += 4;
+            total_words -= 4;
+        }
+
+        while (total_words > 0) {
+            target64[i] = color64;
+            i++;
+            total_words--;
         }
     }
 

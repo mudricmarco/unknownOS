@@ -3,7 +3,7 @@
 // They must be implemented as the C specification mandates.
 // DO NOT remove or rename these functions, or stuff will eventually break!
 
-// I took this implementations from the internet, so I don't know if they are the best one, but it works and is fast enough for now.
+// I took this implementations from the internet and slightly modified them, so I don't know if they are the best one, but it works and is fast enough for now.
 // No need to reinvent the wheel :)
 
 #include <stdint.h>
@@ -188,17 +188,46 @@ void *memmove(void *dest, const void *src, size_t n) {
     return dest;
 }
 
-int memcmp(const void *p1, const void *p2, size_t n)
-{
-    size_t i;
+int memcmp(const void *p1, const void *p2, size_t n) {
+    if (p1 == p2) return 0;
 
-    if (p1 == p2)
-    {
-        return 0;
+    const uint8_t *s1 = p1;
+    const uint8_t *s2 = p2;
+
+    size_t total_words = n / 8;
+    if (total_words > 0) {
+        const uint64_t *s1_64 = (const uint64_t *)s1;
+        const uint64_t *s2_64 = (const uint64_t *)s2;
+
+        size_t i = 0;
+        while (total_words >= 4) {
+            if (s1_64[i] != s2_64[i]) break;
+            if (s1_64[i+1] != s2_64[i+1]) { i += 1; break; }
+            if (s1_64[i+2] != s2_64[i+2]) { i += 2; break; }
+            if (s1_64[i+3] != s2_64[i+3]) { i += 3; break; }
+            i += 4;
+            total_words -= 4;
+        }
+
+        if (total_words < 4 && total_words > 0) {
+            while (total_words > 0) {
+                if (*s1_64 != *s2_64) break;
+                s1_64++;
+                s2_64++;
+                total_words--;
+            }
+        }
+
+        s1 = (const uint8_t *)s1_64;
+        s2 = (const uint8_t *)s2_64;
+        n %= 8;
     }
 
-    for (i = 0; (i < n) && (*(uint8_t *)p1 == *(uint8_t *)p2);
-        i++, p1 = 1 + (uint8_t *)p1, p2 = 1 + (uint8_t *)p2);
-        
-    return (i == n) ? 0 : (*(uint8_t *)p1 - *(uint8_t *)p2);
+    for (size_t i = 0; i < n; i++) {
+        if (s1[i] != s2[i]) {
+            return s1[i] - s2[i];
+        }
+    }
+
+    return 0;
 }

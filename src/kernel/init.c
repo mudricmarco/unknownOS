@@ -20,7 +20,7 @@ void kernel_init(void) {
     limine_init();
 
     // 2. Physical Memory Manager
-    init_pmm();
+    pmm_init();
 
     // 3. Screen
     screen_init();

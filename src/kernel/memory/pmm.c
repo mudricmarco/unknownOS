@@ -205,7 +205,7 @@ static inline void pmm_protect_critical_structures(uint64_t bitmap_phys_addr) {
     }
 }
 
-void init_pmm(void) {
+void pmm_init(void) {
     pmm_validate_bootloader_requests();
     
     struct limine_memmap_response *memmap = memmap_request.response;

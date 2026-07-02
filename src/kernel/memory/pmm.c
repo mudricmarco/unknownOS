@@ -10,7 +10,10 @@
 #include <kernel/memory/pmm.h>
 #include <kernel/panic.h>
 #include <klib/math.h>
-#include <arch/memory.h>
+
+#ifdef CONFIG_ARCH_X86_64
+#include <arch/x86_64/memory.h>
+#endif
 
 #define P2V(phys) ((void*)((uint64_t)(phys) + hhdm_offset))
 #define V2P(virt) ((uint64_t)(virt) - hhdm_offset)
@@ -77,7 +80,7 @@ static inline void pmm_calculate_kernel_bounds(struct limine_memmap_response *me
     uint64_t kernel_size = 0;
 
     // Limine does not directly expose the loaded kernel physical end
-    // For now we assume the EXECUTABLE_AND_MODULES entry corresponds to the kernel image.
+    // For now i assume the EXECUTABLE_AND_MODULES entry corresponds to the kernel image.
     for (uint64_t i = 0; i < memmap->entry_count; i++) {
         struct limine_memmap_entry *entry = memmap->entries[i];
 

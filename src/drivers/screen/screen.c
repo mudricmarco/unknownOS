@@ -309,6 +309,14 @@ void kprintf(uint32_t default_color, int32_t scale, bool direct_vram, const char
     }
 }
 
+int create_string_buf(char* dest, size_t size, const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    int len = kvsnprintf(dest, size, fmt, args);
+    va_end(args);
+    return len;
+}
+
 struct limine_framebuffer* screen_get_fb(void) {
     return fb;
 }
@@ -332,7 +340,7 @@ int32_t screen_get_cursor_x(void) {
 
 void screen_init() {
     if (framebuffer_request.response == NULL || framebuffer_request.response->framebuffer_count < 1) {
-        //? This message will only be printed to the serial console, as we don't have a framebuffer to display it on the screen.
+        //? This message will only be printed to the serial console, as there is not a framebuffer to display it on the screen.
         kernel_panic("Failed to initialize screen: No valid framebuffer available.");
     }
 

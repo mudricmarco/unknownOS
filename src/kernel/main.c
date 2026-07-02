@@ -4,11 +4,13 @@
 #include <drivers/screen/screen.h>
 #include <drivers/screen/colors.h>
 #include <kernel/panic.h>
-#include <arch/cpu.h>
 #include <klib/string.h>
 #include <klib/math.h>
 #include <kernel/init.h>
-#include <kernel/memory/pmm.h>
+
+#ifdef CONFIG_ARCH_X86_64
+#include <arch/x86_64/cpu.h>
+#endif
 
 #define kversion "0.1.0"
 
@@ -20,7 +22,7 @@ void kmain(void) {
     // Initialize the kernel subsystems
     kernel_init();
 
-    // ! That's a very bad hack, but it works for now. We should implement a proper delay mechanism in the future.
+    // ! That's a very bad hack, but it works for now. I should implement a proper delay mechanism in the future.
     delay(900000000); // Delay to allow users to read the boot messages before clearing the screen
 
     set_auto_flush(false);
@@ -43,6 +45,6 @@ void kmain(void) {
     screen_flush();
 
     set_auto_flush(true);
-            
+
     hcf();
 }

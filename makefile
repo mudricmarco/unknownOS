@@ -73,6 +73,7 @@ override CPPFLAGS := \
     -I src/include/arch/$(ARCH) \
     -I src/include \
     -I src \
+    -DCONFIG_ARCH_$(shell echo $(ARCH) | tr '[:lower:]' '[:upper:]') \
     $(CPPFLAGS) \
     -MMD \
     -MP

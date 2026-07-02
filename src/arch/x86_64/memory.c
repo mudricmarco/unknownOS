@@ -1,3 +1,4 @@
+#include <arch/x86_64/memory.h>
 #include <stdint.h>
 
 uint64_t get_current_cr3(void) {

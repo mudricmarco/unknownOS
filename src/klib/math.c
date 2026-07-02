@@ -7,9 +7,6 @@ char* int_to_hex_string(uint64_t value, char* buffer) {
     const char hex_chars[] = "0123456789ABCDEF";
     size_t i = 0;
 
-    buffer[i++] = '0';
-    buffer[i++] = 'x';
-
     if (value == 0) {
         buffer[i++] = '0';
         buffer[i] = '\0';

@@ -4,8 +4,11 @@
 #include <drivers/serial.h>
 #include <bootloader/limine_requests.h>
 #include <klib/mem.h>
-#include <arch/cpu.h>
 #include <stdint.h>
+
+#ifdef CONFIG_ARCH_X86_64
+#include <arch/x86_64/cpu.h>
+#endif
 
 //? Just a fun little function to draw a sad face on the screen during panic, for a bit of personality during kernel panics.
 void draw_sad_face(uint32_t color) {

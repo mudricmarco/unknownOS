@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <klib/mem.h>
 #include <klib/string.h>
-#include "arch/cpu.h"
+#include "arch/x86_64/cpu.h"
 
 void enable_interrupts(void) {
     asm volatile ("sti");

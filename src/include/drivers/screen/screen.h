@@ -35,6 +35,8 @@ void screen_clear(uint32_t color, bool direct_vram);
 
 void kprintf(uint32_t color, int32_t scale, bool direct_vram, const char* fmt, ...);
 
+int create_string_buf(char* dest, size_t size, const char* fmt, ...);
+
 #define kprint_default_scale(text, color, direct_vram) kprint(text, color, DEFAULT_blit32_TEXT_SCALE, direct_vram)
 #define kprintf_default(fmt, ...) kprintf(COLOR_WHITE, DEFAULT_blit32_TEXT_SCALE, false, fmt, ##__VA_ARGS__)
 #define kprintf_default_scale(color, direct_vram, fmt, ...) kprintf(color, DEFAULT_blit32_TEXT_SCALE, direct_vram, fmt, ##__VA_ARGS__)

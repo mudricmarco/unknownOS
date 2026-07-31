@@ -1,15 +1,9 @@
 #include <drivers/serial.h>
 #include <stdint.h>
 
-static void outb(uint16_t port, uint8_t val) {
-    asm volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
-}
-
-static uint8_t inb(uint16_t port) {
-    uint8_t ret;
-    asm volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
-    return ret;
-}
+#ifdef CONFIG_ARCH_X86_64
+#include <arch/x86_64/io.h>
+#endif
 
 void serial_init(void) {
     outb(0x3F8 + 1, 0x00);

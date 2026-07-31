@@ -37,7 +37,6 @@ iso_root/
 
 # Log files
 *.log
-qemu-vga.log
 
 # Temporary
 .cache/

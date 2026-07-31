@@ -1,8 +1,15 @@
 #include <arch/x86_64/idt.h>
 #include <arch/x86_64/cpu.h>
+#include <arch/x86_64/io.h>
+#include <arch/x86_64/lapic.h>
 #include <kernel/panic.h>
 #include <stdint.h>
 #include <stddef.h>
+
+#define PIC1_COMMAND 0x20
+#define PIC1_DATA    0x21
+#define PIC2_COMMAND 0xA0
+#define PIC2_DATA    0xA1
 
 static const char* exception_names[] = {
     "Division By Zero", "Debug", "Non-Maskable Interrupt", "Breakpoint",
@@ -50,7 +57,7 @@ struct idt_ptr idt_pointer;
 
 static isr_handler_t interrupt_handlers[256] = {NULL};
 
-extern uint64_t isr_stub_table[];
+extern uint64_t isr_stub_table[]; // Array of ISR stub addresses defined in assembly
 
 static void idt_set_descriptor(uint8_t vector, uint64_t isr_address, uint8_t attributes, uint16_t _kernel_cs) {
 
@@ -79,8 +86,35 @@ void idt_handler_c(struct registers* regs) {
     }
 }
 
-void idt_init(void) {
+// Disable the legacy PIC to prevent conflicts with the APIC
+static void pic_disable(void) {
+    outb(PIC1_COMMAND, 0x11);
+    io_wait();
+    outb(PIC2_COMMAND, 0x11);
+    io_wait();
 
+    outb(PIC1_DATA, 0x20);
+    io_wait();
+    outb(PIC2_DATA, 0x28);
+    io_wait();
+
+    outb(PIC1_DATA, 0x04);
+    io_wait();
+    outb(PIC2_DATA, 0x02);
+    io_wait();
+
+    outb(PIC1_DATA, 0x01);
+    io_wait();
+    outb(PIC2_DATA, 0x01);
+    io_wait();
+
+    outb(PIC1_DATA, 0xFF);
+    io_wait();
+    outb(PIC2_DATA, 0xFF);
+    io_wait();
+}
+
+void idt_init(void) {
     uint16_t current_cs;
     __asm__ volatile("mov %%cs, %0" : "=r"(current_cs));
 
@@ -96,4 +130,8 @@ void idt_init(void) {
     }
 
     __asm__ volatile ("lidt %0" : : "m"(idt_pointer));
+
+    pic_disable();
+
+    lapic_init();
 }

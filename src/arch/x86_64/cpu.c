@@ -20,6 +20,14 @@ void hcf(void) {
     }
 }
 
+void halt(void) {
+    asm volatile ("hlt");
+}
+
+void halt_sti(void) {
+    asm volatile ("sti; hlt");
+}
+
 //! A shitty delay function that just loops for a given count. 
 //! This is not a precise timing mechanism and should be replaced with a proper timer-based delay in the future.
 void delay(uint64_t count) {

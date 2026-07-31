@@ -186,7 +186,6 @@ int32_t blit32_TextNExplicit(blit_pixel *Buffer, blit_pixel Value, int32_t Scale
                 case  ' ':
                 {
                     uint32_t sY, pY, pX;
-                    // Uso la stessa identica formula del blocco default per l'inidirizzamento lineare della riga
                     blit_pixel *Pixel, *Row = Buffer + (uint32_t)y * (uint32_t)AbsBufWidth + x;
                     for(sY = 0; sY < (uint32_t)(blit32_HEIGHT + blit32_DESCENDER); ++sY)
                         for(pY = (uint32_t)Scale; pY--; Row += BufWidth)
@@ -199,7 +198,6 @@ int32_t blit32_TextNExplicit(blit_pixel *Buffer, blit_pixel Value, int32_t Scale
                 case '\t':
                 {
                     uint32_t sY, pY, pX;
-                    // Forza il calcolo della riga partendo dall'indirizzo base puro + x corrente
                     blit_pixel *Pixel, *Row = Buffer + (uint32_t)y * (uint32_t)AbsBufWidth + x;
                     for(sY = 0; sY < (uint32_t)(blit32_HEIGHT + blit32_DESCENDER); ++sY)
                         for(pY = (uint32_t)Scale; pY--; Row += BufWidth)

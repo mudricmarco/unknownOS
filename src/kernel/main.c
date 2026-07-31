@@ -1,3 +1,4 @@
+#include "cpu.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -7,6 +8,7 @@
 #include <klib/string.h>
 #include <klib/math.h>
 #include <kernel/init.h>
+#include <kernel/timer/timer.h>
 
 #ifdef CONFIG_ARCH_X86_64
 #include <arch/x86_64/cpu.h>
@@ -22,8 +24,7 @@ void kmain(void) {
     // Initialize the kernel subsystems
     kernel_init();
 
-    // ! That's a very bad hack, but it works for now. I should implement a proper delay mechanism in the future.
-    delay(900000000); // Delay to allow users to read the boot messages before clearing the screen
+    //sleep_ms(5000);
 
     set_auto_flush(false);
 
@@ -48,3 +49,4 @@ void kmain(void) {
 
     hcf();
 }
+

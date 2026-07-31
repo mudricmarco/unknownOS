@@ -10,6 +10,7 @@
 #include <kernel/memory/pmm.h>
 #include <kernel/panic.h>
 #include <klib/math.h>
+#include <klib/mem.h>
 
 #ifdef CONFIG_ARCH_X86_64
 #include <arch/x86_64/memory.h>
@@ -56,11 +57,11 @@ static inline void bitmap_set_page(uint64_t page) {
     pmm_bitmap[page / 8] |= (1 << (page % 8));
 }
 
-static inline void bitmap_clear_page(uint64_t page) {
+static void bitmap_clear_page(uint64_t page) {
     pmm_bitmap[page / 8] &= ~(1 << (page % 8));
 }
 
-static inline void pmm_validate_bootloader_requests(void) {
+static void pmm_validate_bootloader_requests(void) {
     if (memmap_request.response == NULL || memmap_request.response->entry_count == 0) {
         kernel_panic("Failed to initialize physical memory: No valid memory map provided by the bootloader.");
     }
@@ -72,7 +73,7 @@ static inline void pmm_validate_bootloader_requests(void) {
     }
 }
 
-static inline void pmm_calculate_kernel_bounds(struct limine_memmap_response *memmap) {
+static void pmm_calculate_kernel_bounds(struct limine_memmap_response *memmap) {
     // -- Calculate Kernel start and end physical addresses, and HHDM offset
     hhdm_offset = hhdm_request.response->offset;
     _kernel_start_phys = kernel_address_request.response->physical_base;
@@ -97,7 +98,7 @@ static inline void pmm_calculate_kernel_bounds(struct limine_memmap_response *me
     _kernel_end_phys = _kernel_start_phys + kernel_size;
 }
 
-static inline uint64_t pmm_find_highest_address(struct limine_memmap_response *memmap) {
+static uint64_t pmm_find_highest_address(struct limine_memmap_response *memmap) {
     uint64_t highest_address = 0;
 
     for (uint64_t i = 0; i < memmap->entry_count; i++) {
@@ -127,12 +128,12 @@ static inline uint64_t pmm_allocate_bitmap_placeholder(struct limine_memmap_resp
     return bitmap_phys_addr;
 }
 
-static inline void pmm_init_bitmap_metadata(struct limine_memmap_response *memmap) {
+static void pmm_init_bitmap_metadata(struct limine_memmap_response *memmap) {
     // -- Configure the memory bitmap --
     uint64_t highest_address = pmm_find_highest_address(memmap);
 
     pmm_total_pages = (highest_address + 4095) / 4096;
-    pmm_bitmap_size = pmm_total_pages / 8;
+    pmm_bitmap_size = ALIGN_UP(pmm_total_pages, 64) / 8;
     if (pmm_total_pages % 8 != 0) {
         pmm_bitmap_size++;
     }
@@ -140,21 +141,10 @@ static inline void pmm_init_bitmap_metadata(struct limine_memmap_response *memma
     uint64_t bitmap_phys_addr = pmm_allocate_bitmap_placeholder(memmap);
     pmm_bitmap = (uint8_t*)P2V(bitmap_phys_addr);
 
-    uint64_t* bitmap64 = (uint64_t*)pmm_bitmap;
-    uint64_t size64 = pmm_bitmap_size / 8;
-
-    for (uint64_t i = 0; i < size64; i++) {
-        bitmap64[i] = 0xFFFFFFFFFFFFFFFF;
-    }
-
-    for (uint64_t i = size64 * 8; i < pmm_bitmap_size; i++) {
-        pmm_bitmap[i] = 0xFF;
-    }
+    memset(pmm_bitmap, 0xFF, pmm_bitmap_size);
 }
 
-static inline void pmm_map_usable_memory_regions(struct limine_memmap_response *memmap) {
-    uint64_t* bitmap64 = (uint64_t*)pmm_bitmap;
-
+static void pmm_map_usable_memory_regions(struct limine_memmap_response *memmap) {
     for (uint64_t i = 0; i < memmap->entry_count; i++) {
         struct limine_memmap_entry *entry = memmap->entries[i];
 
@@ -180,7 +170,7 @@ static inline void pmm_map_usable_memory_regions(struct limine_memmap_response *
             
             uint64_t bulk_end_page = ALIGN_DOWN(end_page, 64);
             for (; page < bulk_end_page; page += 64) {
-                bitmap64[page / 64] = 0x0000000000000000;
+                memset(&pmm_bitmap[page / 8], 0x00, 8);
             }
 
             for (; page < end_page; page++) {
@@ -190,7 +180,7 @@ static inline void pmm_map_usable_memory_regions(struct limine_memmap_response *
     }
 }
 
-static inline void pmm_protect_critical_structures(uint64_t bitmap_phys_addr) {
+static void pmm_protect_critical_structures(uint64_t bitmap_phys_addr) {
     uint64_t kernel_start_page = ALIGN_DOWN(_kernel_start_phys, 4096) / 4096;
     uint64_t kernel_end_page = ALIGN_UP(_kernel_end_phys, 4096) / 4096;
     for (uint64_t page = kernel_start_page; page < kernel_end_page; page++) {
@@ -207,15 +197,19 @@ static inline void pmm_protect_critical_structures(uint64_t bitmap_phys_addr) {
 
 void pmm_init(void) {
     pmm_validate_bootloader_requests();
-    
+
     struct limine_memmap_response *memmap = memmap_request.response;
 
     pmm_calculate_kernel_bounds(memmap);
+
+    pmm_find_highest_address(memmap);
+
     pmm_init_bitmap_metadata(memmap);
+
     pmm_map_usable_memory_regions(memmap);
-    
-    uint64_t bitmap_phys_addr = V2P(pmm_bitmap);
-    pmm_protect_critical_structures(bitmap_phys_addr);
+
+    uint64_t phys_bm = V2P(pmm_bitmap);
+    pmm_protect_critical_structures(phys_bm);
 
     pmm_bootloader_cr3 = get_current_cr3();
 

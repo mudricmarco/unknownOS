@@ -34,8 +34,6 @@ void draw_sad_face(uint32_t color) {
 
 void kernel_panic(const char *message) {
     disable_interrupts();
-
-    serial_init();
     serial_puts("\n\n!!! KERNEL PANIC !!!\n");
     serial_puts("\n");
     serial_puts(message);

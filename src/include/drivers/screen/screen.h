@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdarg.h>
+#include <drivers/screen/colors.h>
 
 #define DEFAULT_blit32_TEXT_SCALE 2
 

@@ -85,8 +85,11 @@ static void pmm_calculate_kernel_bounds(struct limine_memmap_response *memmap) {
     for (uint64_t i = 0; i < memmap->entry_count; i++) {
         struct limine_memmap_entry *entry = memmap->entries[i];
 
-        if (entry->type == LIMINE_MEMMAP_EXECUTABLE_AND_MODULES && entry->base == _kernel_start_phys) {
-            kernel_size = entry->length;
+        if (entry->type == LIMINE_MEMMAP_EXECUTABLE_AND_MODULES &&
+            _kernel_start_phys >= entry->base &&
+            _kernel_start_phys < (entry->base + entry->length)) {
+            
+            kernel_size = (entry->base + entry->length) - _kernel_start_phys;
             break;
         }
     }
@@ -103,9 +106,17 @@ static uint64_t pmm_find_highest_address(struct limine_memmap_response *memmap) 
 
     for (uint64_t i = 0; i < memmap->entry_count; i++) {
         struct limine_memmap_entry *entry = memmap->entries[i];
-        uint64_t entry_end = entry->base + entry->length;
-        if (entry_end > highest_address) {
-            highest_address = entry_end;
+
+        if (entry->type == LIMINE_MEMMAP_USABLE ||
+            entry->type == LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE ||
+            entry->type == LIMINE_MEMMAP_EXECUTABLE_AND_MODULES ||
+            entry->type == LIMINE_MEMMAP_ACPI_RECLAIMABLE ||
+            entry->type == LIMINE_MEMMAP_ACPI_NVS) {
+
+            uint64_t entry_end = entry->base + entry->length;
+            if (entry_end > highest_address) {
+                highest_address = entry_end;
+            }
         }
     }
     return highest_address;
@@ -113,12 +124,22 @@ static uint64_t pmm_find_highest_address(struct limine_memmap_response *memmap) 
 
 static inline uint64_t pmm_allocate_bitmap_placeholder(struct limine_memmap_response *memmap) {
     uint64_t bitmap_phys_addr = 0;
+
     for (uint64_t i = 0; i < memmap->entry_count; i++) {
         struct limine_memmap_entry *entry = memmap->entries[i];
 
-        if (entry->type == LIMINE_MEMMAP_USABLE && entry->length >= pmm_bitmap_size) {
-            bitmap_phys_addr = entry->base;
-            break;
+        if (entry->type == LIMINE_MEMMAP_USABLE) {
+            uint64_t aligned_base = ALIGN_UP(entry->base, 4096);
+            uint64_t aligned_end = ALIGN_DOWN(entry->base + entry->length, 4096);
+
+            if (aligned_base == 0) {
+                aligned_base += 4096;
+            }
+
+            if (aligned_base < aligned_end && (aligned_end - aligned_base) >= pmm_bitmap_size) {
+                bitmap_phys_addr = aligned_base;
+                break;
+            }
         }
     }
 

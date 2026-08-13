@@ -106,7 +106,7 @@ isr_common:
 
     ; Pass a pointer to the stack frame as the first argument (RDI)
     mov rdi, rsp
-    
+
     ; Call the C central dispatcher
     call idt_handler_c
 

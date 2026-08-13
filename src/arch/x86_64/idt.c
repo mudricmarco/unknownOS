@@ -22,36 +22,6 @@ static const char* exception_names[] = {
     "Security Exception", "Reserved"
 };
 
-void kernel_panic_detailed(struct registers* regs) {
-    disable_interrupts();
-
-    char buffer[2048];
-
-    create_string_buf(
-        buffer, 
-        sizeof(buffer),
-        "unknownOS has encountered a fatal error and must be shut down.\n"
-        "Detail: %s (Vector: %d, Error Code: 0x%x)\n\n"
-        "--- STATE DUMP (REGISTERS) ---\n"
-        "RIP: 0x%x    CS:  0x%x    RFLAGS: 0x%x\n"
-        "RSP: 0x%x    SS:  0x%x\n\n"
-        "RAX: 0x%x    RBX: 0x%x    RCX:    0x%x    RDX: 0x%x\n"
-        "RSI: 0x%x    RDI: 0x%x    RBP:    0x%x\n"
-        "R8:  0x%x    R9:  0x%x    R10:    0x%x    R11: 0x%x\n"
-        "R12: 0x%x    R13: 0x%x    R14:    0x%x    R15: 0x%x\n\n"
-        "--------------------------------------------------------------------------------\n"
-        "The system has been halted. Please reboot your hardware manually.\n",
-        exception_names[regs->int_no], regs->int_no, regs->error_code,
-        regs->rip, regs->cs, regs->rflags, regs->rsp, regs->ss,
-        regs->rax, regs->rbx, regs->rcx, regs->rdx,
-        regs->rsi, regs->rdi, regs->rbp,
-        regs->r8,  regs->r9,  regs->r10, regs->r11,
-        regs->r12, regs->r13, regs->r14, regs->r15
-    );
-
-    kernel_panic(buffer);
-}
-
 struct idt_entry idt[256];
 struct idt_ptr idt_pointer;
 
@@ -81,7 +51,7 @@ void idt_handler_c(struct registers* regs) {
         handler(regs);
     } else {
         if (regs->int_no < 32) {
-            kernel_panic_detailed(regs);
+            kernel_panic_detailed(regs, exception_names[regs->int_no]);
         }
     }
 }

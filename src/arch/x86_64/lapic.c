@@ -84,5 +84,6 @@ void lapic_init(void) {
     }
 
     lapic_write(LAPIC_SVR, LAPIC_SVR_ENABLE | 0xFF);
-    
+
+    lapic_write(LAPIC_TPR, 0);
 }

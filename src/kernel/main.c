@@ -20,11 +20,12 @@
 
 // --- KERNEL ENTRY POINT ---
 void kmain(void) {
-
     // Initialize the kernel subsystems
     kernel_init();
 
-    //sleep_ms(5000);
+    screen_flush();
+
+    sleep_ms(5000);
 
     set_auto_flush(false);
 
@@ -38,7 +39,7 @@ void kmain(void) {
                 "\\____/_/ /_/_/|_/_/ /_/\\____/|__/|__/_/ /_/\\____//____/\n"
                 "\n");
 
-    kprintf_default_scale(COLOR_WHITE, DIRECT_VRAM_WRITE, 
+    kprintf_default_scale(COLOR_WHITE, DIRECT_VRAM_WRITE,
             " Kernel Version: %C%s%C\n"
             " System is ready.\n",
             COLOR_YELLOW_ORANGE, kversion, COLOR_WHITE);
@@ -49,4 +50,3 @@ void kmain(void) {
 
     hcf();
 }
-

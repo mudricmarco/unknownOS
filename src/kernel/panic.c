@@ -50,3 +50,33 @@ void kernel_panic(const char *message) {
 
     hcf();
 }
+
+void kernel_panic_detailed(struct registers* regs, const char* message) {
+    disable_interrupts();
+
+    char buffer[2048];
+
+    create_string_buf(
+        buffer, 
+        sizeof(buffer),
+        "unknownOS has encountered a fatal error and must be shut down.\n"
+        "Detail: %s (Vector: %d, Error Code: 0x%x)\n\n"
+        "--- STATE DUMP (REGISTERS) ---\n"
+        "RIP: 0x%x    CS:  0x%x    RFLAGS: 0x%x\n"
+        "RSP: 0x%x    SS:  0x%x\n\n"
+        "RAX: 0x%x    RBX: 0x%x    RCX:    0x%x    RDX: 0x%x\n"
+        "RSI: 0x%x    RDI: 0x%x    RBP:    0x%x\n"
+        "R8:  0x%x    R9:  0x%x    R10:    0x%x    R11: 0x%x\n"
+        "R12: 0x%x    R13: 0x%x    R14:    0x%x    R15: 0x%x\n\n"
+        "--------------------------------------------------------------------------------\n"
+        "The system has been halted. Please reboot your hardware manually.\n",
+        message, regs->int_no, regs->error_code,
+        regs->rip, regs->cs, regs->rflags, regs->rsp, regs->ss,
+        regs->rax, regs->rbx, regs->rcx, regs->rdx,
+        regs->rsi, regs->rdi, regs->rbp,
+        regs->r8,  regs->r9,  regs->r10, regs->r11,
+        regs->r12, regs->r13, regs->r14, regs->r15
+    );
+
+    kernel_panic(buffer);
+}

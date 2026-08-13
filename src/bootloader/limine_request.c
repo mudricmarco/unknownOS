@@ -1,7 +1,4 @@
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
-#include <bootloader/limine.h>
+#include "bootloader/limine.h"
 #include <bootloader/limine_requests.h>
 #include <kernel/panic.h>
 
@@ -14,7 +11,6 @@ static volatile uint64_t limine_requests_start_marker[] = LIMINE_REQUESTS_START_
 
 __attribute__((used, section(".limine_requests_end")))
 static volatile uint64_t limine_requests_end_marker[] = LIMINE_REQUESTS_END_MARKER;
-
 
 // --- LIMINE REQUESTS ---
 __attribute__((used, section(".limine_requests")))
@@ -41,10 +37,15 @@ volatile struct limine_hhdm_request hhdm_request = {
     .revision = 0
 };
 
+__attribute__((used, section(".limine_requests")))
+volatile struct limine_rsdp_request rsdp_request = {
+    .id = LIMINE_RSDP_REQUEST_ID,
+    .revision = 0
+};
+
 // --- LIMINE INITIALIZATION CHECK ---
 void limine_init(void) {
-    if(!LIMINE_BASE_REVISION_SUPPORTED(limine_base_revision) || !LIMINE_LOADED_BASE_REVISION_VALID(limine_base_revision) ) {
-        // If the base revision is not supported or not valid, launch a kernel panic in the serial console.
+    if (!LIMINE_BASE_REVISION_SUPPORTED(limine_base_revision) || !LIMINE_LOADED_BASE_REVISION_VALID(limine_base_revision)) {
         kernel_panic("LIMINE Init failed.");
     }
 }

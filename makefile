@@ -42,8 +42,14 @@ endif
 # ==============================================================================
 # 2. COMPILER AND LINKER FLAGS (PROTECTED WITH OVERRIDE)
 # ==============================================================================
+
 # User-controllable optimization and debug flags
-CFLAGS := -g -O2 -pipe
+ifeq ($(DEBUG),1)
+    CFLAGS := -g -O0 -pipe
+else
+    CFLAGS := -g -O2 -pipe
+endif
+
 NASMFLAGS := -g
 
 # Critical Kernel CFLAGS that must NEVER be overwritten by the user
@@ -180,3 +186,9 @@ run: $(ISO_IMAGE)
 # Wipe out all generated build artifacts to reset the workspace environment
 clean:
 	rm -rf obj $(OUTPUT) $(ISO_IMAGE) iso_root
+
+# ==============================================================================
+# 7. DEBUG TARGETS (QEMU + GDB)
+# ==============================================================================
+qemu-gdb: $(ISO_IMAGE)
+	qemu-system-x86_64 -M q35 -m 256M -cdrom $(ISO_IMAGE) -boot d -serial stdio -s -S

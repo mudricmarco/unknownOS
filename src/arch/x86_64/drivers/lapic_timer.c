@@ -58,7 +58,7 @@ static void lapic_timer_init_callback(uint32_t frequency) {
     }
 
     if (initial_count == 0) {
-        initial_count = 100000000 / frequency;
+        initial_count = 100000000 / frequency; // Fallback: assume 100 MHz if ACPI PM timer is not available
     }
 
     lapic_write(LAPIC_TDCR, selected_divider);

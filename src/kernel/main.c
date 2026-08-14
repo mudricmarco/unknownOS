@@ -1,4 +1,3 @@
-#include "cpu.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -25,7 +24,7 @@ void kmain(void) {
 
     screen_flush();
 
-    sleep_ms(5000);
+    sleep_ms(2000);
 
     set_auto_flush(false);
 

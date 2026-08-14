@@ -1,11 +1,10 @@
 #include <bootloader/limine_requests.h>
 #include <drivers/acpi.h>
 #include <stdint.h>
-#include <kernel/memory/pmm.h>
-
-#define NULL ((void*)0)
 
 #define P2V(phys) ((void*)((uint64_t)(phys) + hhdm_request.response->offset))
+
+#define NULL ((void*)0)
 
 uint16_t get_acpi_pm_timer_port(void) {
     if (rsdp_request.response == NULL || rsdp_request.response->address == NULL) {

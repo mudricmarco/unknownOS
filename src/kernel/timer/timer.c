@@ -23,6 +23,7 @@ timer_device_t* get_active_timer(void) {
     return active_timer;
 }
 
+//TODO: Review the logic of this function, maybe it should be done differently.
 void timer_register(timer_device_t *timer, uint32_t frequency) {
     if (!timer) return;
 
@@ -30,13 +31,13 @@ void timer_register(timer_device_t *timer, uint32_t frequency) {
     INIT_LIST_HEAD(&timer->list_node);
 
     if (timer->init) {
-        timer->init(frequency);
+        timer->init(frequency); //? Maybe i should not initialize the timer here, but let it be initialized independently.
     }
 
     list_add_tail(&timer->list_node, &timer_list);
 
     if (!active_timer) {
-        set_active_timer(timer);
+        set_active_timer(timer); //? Also, i don't know if assuming the last registered timer as the active one is a good idea.
     }
 }
 

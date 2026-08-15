@@ -44,3 +44,5 @@ iso_root/
 #clangd
 compile_commands.json
 .clangd
+
+.obsidian/

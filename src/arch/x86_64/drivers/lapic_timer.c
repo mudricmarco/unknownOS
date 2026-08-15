@@ -54,7 +54,7 @@ static void lapic_timer_init_callback(uint32_t frequency) {
         uint32_t elapsed_ticks = 0xFFFFFFFF - current_count;
 
         uint32_t ticks_per_ms = elapsed_ticks / 10;
-        initial_count = ticks_per_ms * (1000 / frequency);
+        initial_count = (ticks_per_ms * 1000) / frequency;
     }
 
     if (initial_count == 0) {

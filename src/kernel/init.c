@@ -7,11 +7,13 @@
 #include <kernel/init.h>
 #include <kernel/memory/pmm.h>
 #include <klib/math.h>
+#include <drivers/keyboard.h>
 
 #ifdef CONFIG_ARCH_X86_64
 #include <arch/x86_64/cpu.h>
 #include <arch/x86_64/drivers/lapic_timer.h>
 #include <arch/x86_64/idt.h>
+#include <arch/x86_64/drivers/ioapic.h>
 #endif
 
 // TODO: Make the logging better
@@ -46,6 +48,9 @@ void kernel_init(void) {
     idt_register_handler(LAPIC_TIMER_VECTOR, lapic_timer_irq_handler);
     kprintf_default("[OK]\n");
 #endif
+
+    keyboard_init();
+    idt_register_handler(IOAPIC_IDT_VECTOR, keyboard_irq_handler);
 
     enable_interrupts();
 

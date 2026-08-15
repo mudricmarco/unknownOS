@@ -133,10 +133,28 @@ void kprint(const char *text, uint32_t color, int32_t scale, bool direct_vram) {
             continue; 
         }
 
+
+        //TODO: Handle backspace properly, it works but for exaple if it goes back up it goes to the end of the previsous line, it should go to the end of the previous word
+        //TODO: Change the black color to the background color of the screen, not just black
         if (text[i] == '\b') {
-            cursor_x -= cell_width;
-            if (cursor_x < DEFAULT_CURSOR_X) {
-                cursor_x = DEFAULT_CURSOR_X;
+            bool can_move_back = true;
+
+            if (cursor_x >= DEFAULT_CURSOR_X + cell_width) {
+                cursor_x -= cell_width;
+            } else if (cursor_y >= DEFAULT_CURSOR_Y + cell_height) {
+                int32_t max_chars_per_line = ((int32_t)fb->width - DEFAULT_CURSOR_X) / cell_width;
+                cursor_x = DEFAULT_CURSOR_X + (max_chars_per_line - 1) * cell_width;
+                cursor_y -= cell_height;
+            } else {
+                can_move_back = false;
+            }
+
+            if (can_move_back) {
+                for (int32_t dy = 0; dy < cell_height; dy++) {
+                    for (int32_t dx = 0; dx < cell_width; dx++) {
+                        screen_put_pixel(cursor_x + dx, cursor_y + dy, 0x00000000, direct_vram);
+                    }
+                }
             }
             continue; 
         }
@@ -155,6 +173,10 @@ void kprint(const char *text, uint32_t color, int32_t scale, bool direct_vram) {
                     }
                 }
             }
+            continue;
+        }
+
+        if ((unsigned char)text[i] < ' ') {
             continue;
         }
 
@@ -204,6 +226,11 @@ int kvsnprintf(char* buf, size_t size, const char* fmt, va_list args) {
                 }
                 break;
             }
+            case 'c': {
+                int ch = va_arg(args, int);
+                buf[idx++] = (char)ch;
+                break;
+            }
             case 'x': {
                 uint64_t num = va_arg(args, uint64_t);
                 char hex_buffer[32];
@@ -242,6 +269,10 @@ static void consume_format_args(const char* fmt, va_list args) {
             }
             case 's': {
                 (void)va_arg(args, char*);
+                break;
+            }
+            case 'c': {
+                (void)va_arg(args, int);
                 break;
             }
             case 'x': {

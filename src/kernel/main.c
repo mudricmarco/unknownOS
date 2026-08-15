@@ -8,6 +8,7 @@
 #include <klib/math.h>
 #include <kernel/init.h>
 #include <kernel/timer/timer.h>
+#include <drivers/keyboard.h>
 
 #ifdef CONFIG_ARCH_X86_64
 #include <arch/x86_64/cpu.h>
@@ -46,6 +47,14 @@ void kmain(void) {
     screen_flush();
 
     set_auto_flush(true);
+
+    while (1) {
+        char c = keyboard_getchar();
+
+        if (c != 0) {
+            kprintf_default_scale(COLOR_WHITE, DIRECT_VRAM_WRITE, "%C%c%C", COLOR_YELLOW_ORANGE, c, COLOR_WHITE);
+        }
+    }
 
     hcf();
 }

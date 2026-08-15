@@ -134,7 +134,7 @@ void kprint(const char *text, uint32_t color, int32_t scale, bool direct_vram) {
         }
 
 
-        //TODO: Handle backspace properly, it works but for exaple if it goes back up it goes to the end of the previsous line, it should go to the end of the previous word
+        //TODO: Handle backspace properly
         //TODO: Change the black color to the background color of the screen, not just black
         if (text[i] == '\b') {
             bool can_move_back = true;

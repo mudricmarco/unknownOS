@@ -27,12 +27,3 @@ void halt(void) {
 void halt_sti(void) {
     asm volatile ("sti; hlt");
 }
-
-//! A shitty delay function that just loops for a given count. 
-//! This is not a precise timing mechanism and should be replaced with a proper timer-based delay in the future.
-void delay(uint64_t count) {
-    volatile uint64_t i;
-    for (i = 0; i < count; i++) {
-        asm volatile("nop");
-    }
-}

@@ -12,5 +12,3 @@ void hcf(void);
 void halt(void);
 
 void halt_sti(void);
-
-void delay(uint64_t count);

@@ -24,6 +24,7 @@ static LIST_HEAD(kbd_free_list);
 static LIST_HEAD(kbd_pending_list);
 
 static bool shift_pressed = false;
+static bool caps_lock = false;
 static bool scancode_down[256] = { false };
 
 static const char scancode_ascii_nomod[] = {
@@ -34,7 +35,7 @@ static const char scancode_ascii_nomod[] = {
   '*',    0, ' '
 };
 
-static const char scancode_ascii_shift[] = {
+static const char scancode_ascii_maiusc[] = {
     0,  27, '!', '"', '#', '$', '%', '&', '/', '(', ')', '=', '?', '^', '\b',
   '\t', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}', '\n',
     0,  'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', '+', '*', '~',
@@ -53,6 +54,11 @@ static void keyboard_process_scancode(uint8_t scancode) {
         return;
     }
 
+    if (scancode == 0x3A) {
+        caps_lock = !caps_lock;
+        return;
+    }
+
     if (scancode & 0x80) {
         scancode_down[scancode & 0x7F] = false;
         return;
@@ -65,7 +71,9 @@ static void keyboard_process_scancode(uint8_t scancode) {
     scancode_down[scancode] = true;
     
     if (scancode < sizeof(scancode_ascii_nomod)) {
-        char c = shift_pressed ? scancode_ascii_shift[scancode] : scancode_ascii_nomod[scancode];
+        char c = (shift_pressed ^ caps_lock)
+            ? scancode_ascii_maiusc[scancode]
+            : scancode_ascii_nomod[scancode];
         if (c != 0 && !list_empty(&kbd_free_list)) {
             struct list_head *node = kbd_free_list.next;
             list_del(node);

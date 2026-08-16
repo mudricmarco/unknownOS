@@ -1,5 +1,3 @@
-//TODO: Change this file to use the kernel's paging system instead of manually mapping the LAPIC MMIO region.
-
 #include <arch/x86_64/lapic.h>
 #include <arch/x86_64/cpu.h>
 #include <kernel/memory/pmm.h>

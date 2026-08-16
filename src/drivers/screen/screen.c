@@ -36,6 +36,43 @@ static int32_t cursor_y = DEFAULT_CURSOR_Y;
 
 static bool auto_flush_enabled = true;
 
+static uint32_t current_background_color = COLOR_BLACK;
+
+static void fill_buffer_with_color(uint32_t* target, uint64_t total_bytes, uint32_t color) {
+    if (color == 0) {
+        memset((void*)target, 0, total_bytes);
+        return;
+    }
+
+    uint64_t color64 = ((uint64_t)color << 32) | color;
+    uint64_t* target64 = (uint64_t*)target;
+    size_t total_words = total_bytes / 8;
+
+    size_t i = 0;
+    while (total_words >= 4) {
+        target64[i]     = color64;
+        target64[i + 1] = color64;
+        target64[i + 2] = color64;
+        target64[i + 3] = color64;
+        i += 4;
+        total_words -= 4;
+    }
+
+    while (total_words > 0) {
+        target64[i] = color64;
+        i++;
+        total_words--;
+    }
+}
+
+static void fill_rect(size_t x, size_t y, int32_t width, int32_t height, uint32_t color, bool direct_vram) {
+    for (int32_t dy = 0; dy < height; dy++) {
+        for (int32_t dx = 0; dx < width; dx++) {
+            screen_put_pixel(x + (size_t)dx, y + (size_t)dy, color, direct_vram);
+        }
+    }
+}
+
 void set_auto_flush(bool enable) {
     auto_flush_enabled = enable;
 }
@@ -90,17 +127,17 @@ static void check_newline_and_scroll(blit_props* props, int32_t cell_height, boo
                 uint32_t* src  = vram + ((y + cell_height) * stride);
                 memcpy((void*)dest, (void*)src, props->BufWidth * 4);
             }
-            memset((void*)(vram + (props->BufHeight - cell_height) * stride), 
-                   0, 
-                   cell_height * stride * 4);
+            fill_buffer_with_color((uint32_t*)(vram + (props->BufHeight - cell_height) * stride),
+                                   (uint64_t)cell_height * stride * 4,
+                                   current_background_color);
         } else {
             memmove((void*)backbuffer, 
                     (void*)(backbuffer + line_size), 
                     (props->BufHeight - cell_height) * stride * 4);
-                
-            memset((void*)(backbuffer + (props->BufHeight - cell_height) * stride), 
-                0, 
-                cell_height * stride * 4);
+
+            fill_buffer_with_color((uint32_t*)(backbuffer + (props->BufHeight - cell_height) * stride),
+                                   (uint64_t)cell_height * stride * 4,
+                                   current_background_color);
         }
         
         cursor_y -= cell_height;
@@ -135,7 +172,6 @@ void kprint(const char *text, uint32_t color, int32_t scale, bool direct_vram) {
 
 
         //TODO: Handle backspace properly
-        //TODO: Change the black color to the background color of the screen, not just black
         if (text[i] == '\b') {
             bool can_move_back = true;
 
@@ -150,13 +186,19 @@ void kprint(const char *text, uint32_t color, int32_t scale, bool direct_vram) {
             }
 
             if (can_move_back) {
-                for (int32_t dy = 0; dy < cell_height; dy++) {
-                    for (int32_t dx = 0; dx < cell_width; dx++) {
-                        screen_put_pixel(cursor_x + dx, cursor_y + dy, 0x00000000, direct_vram);
-                    }
-                }
+                fill_rect((size_t)cursor_x, (size_t)cursor_y, cell_width, cell_height, current_background_color, direct_vram);
             }
             continue; 
+        }
+
+        if (text[i] == ' ') {
+            if (cursor_x + cell_width > (int32_t)fb->width) {
+                check_newline_and_scroll(&props, cell_height, direct_vram);
+            }
+
+            fill_rect((size_t)cursor_x, (size_t)cursor_y, cell_width, cell_height, current_background_color, direct_vram);
+            cursor_x += cell_width;
+            continue;
         }
 
         if (text[i] == '\t') {
@@ -166,9 +208,7 @@ void kprint(const char *text, uint32_t color, int32_t scale, bool direct_vram) {
             } else {
                 for (int t = 0; t < TAB_SIZE; t++) {
                     if (cursor_x + cell_width <= (int32_t)fb->width) {
-                        blit32_TextNExplicit(props.Buffer, props.Value, props.Scale, 
-                                             props.BufWidth, props.BufHeight, props.Wrap, 
-                                             cursor_x, cursor_y, -1, " ");
+                        fill_rect((size_t)cursor_x, (size_t)cursor_y, cell_width, cell_height, current_background_color, direct_vram);
                         cursor_x += cell_width;
                     }
                 }
@@ -407,33 +447,12 @@ void screen_init() {
 void screen_clear(uint32_t color, bool direct_vram) {
     if (fb == NULL) return;
 
+    current_background_color = color;
+
     uint32_t* target = direct_vram ? (uint32_t*)fb->address : backbuffer;
     uint64_t total_bytes = fb->pitch * fb->height;
 
-    if (color == 0) {
-        memset((void*)target, 0, total_bytes);
-    } 
-    else {
-        uint64_t color64 = ((uint64_t)color << 32) | color;
-        uint64_t* target64 = (uint64_t*)target;
-        size_t total_words = total_bytes / 8;
-
-        size_t i = 0;
-        while (total_words >= 4) {
-            target64[i]     = color64;
-            target64[i + 1] = color64;
-            target64[i + 2] = color64;
-            target64[i + 3] = color64;
-            i += 4;
-            total_words -= 4;
-        }
-
-        while (total_words > 0) {
-            target64[i] = color64;
-            i++;
-            total_words--;
-        }
-    }
+    fill_buffer_with_color(target, total_bytes, color);
 
     reset_cursor();
 

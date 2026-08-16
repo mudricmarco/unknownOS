@@ -15,7 +15,6 @@ kanban-plugin: board
 ## To Do
 
 - [ ] Heap Allocator: Implement basic `kmalloc()` and `kfree()`
-- [ ] VMM: Add vmm_unmap_page
 
 
 ## In Progress
@@ -44,6 +43,7 @@ kanban-plugin: board
 - [ ] VMM: Implement the `map_page()` function
 - [ ] VMM: Initialize PML4, PDPT, PD, and PT page tables
 - [ ] VMM: Reload `CR3` with the new kernel page directory
+- [ ] VMM: Add vmm_unmap_page
 
 
 

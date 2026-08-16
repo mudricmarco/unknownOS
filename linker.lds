@@ -1,12 +1,6 @@
-/* Tell the linker that i want an x86_64 ELF64 output file */
 OUTPUT_FORMAT(elf64-x86-64)
-
-/* I want the symbol kmain to be the entry point */
 ENTRY(kmain)
 
-/* Define the program headers i want so the bootloader gives us the right */
-/* MMU permissions; this also allows us to exert more control over the linking */
-/* process. */
 PHDRS
 {
     limine_requests PT_LOAD;
@@ -17,52 +11,47 @@ PHDRS
 
 SECTIONS
 {
-    /* I want to be placed in the topmost 2GiB of the address space, for optimisations */
-    /* and because that is what the Limine spec mandates. */
-    /* Any address in this region will do, but often 0xffffffff80000000 is chosen as */
-    /* that is the beginning of the region. */
     . = 0xffffffff80000000;
 
-    /* Define a section to contain the Limine requests and assign it to its own PHDR */
     .limine_requests : {
+        __requests_start = .;
         KEEP(*(.limine_requests_start))
         KEEP(*(.limine_requests))
         KEEP(*(.limine_requests_end))
+        __requests_end = .;
     } :limine_requests
 
-    /* Move to the next memory page for .text */
     . = ALIGN(CONSTANT(MAXPAGESIZE));
 
     .text : {
+        __text_start = .;
         *(.text .text.*)
+        __text_end = .;
     } :text
 
-    /* Move to the next memory page for .rodata */
     . = ALIGN(CONSTANT(MAXPAGESIZE));
 
     .rodata : {
+        __rodata_start = .;
         *(.rodata .rodata.*)
-    } :rodata
-
-    /* Add a .note.gnu.build-id output section in case a build ID flag is added to the */
-    /* linker command. */
-    .note.gnu.build-id : {
+        
         *(.note.gnu.build-id)
+        __rodata_end = .;
     } :rodata
 
-    /* Move to the next memory page for .data */
     . = ALIGN(CONSTANT(MAXPAGESIZE));
 
     .data : {
+        __data_start = .;
         *(.data .data.*)
     } :data
 
     .bss : {
         *(.bss .bss.*)
         *(COMMON)
+        __data_end = .;
     } :data
 
-    /* Discard .note.* and .eh_frame* since they may cause issues on some hosts. */
     /DISCARD/ : {
         *(.eh_frame*)
         *(.note .note.*)

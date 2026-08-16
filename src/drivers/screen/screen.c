@@ -1,4 +1,3 @@
-#include "kernel/panic.h"
 #include <drivers/screen/screen.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -18,6 +17,7 @@
 #define blit32_NO_INLINE
 #include <drivers/screen/fonts/blit32.h>
 
+static struct limine_framebuffer fb_storage;
 static struct limine_framebuffer* fb = NULL;
 static size_t screen_pitch_div_4 = 0;
 
@@ -160,19 +160,25 @@ void kprint(const char *text, uint32_t color, int32_t scale, bool direct_vram) {
     int32_t cell_height = (blit32_FONT_HEIGHT + 2) * scale;
 
     for (size_t i = 0; text[i] != '\0'; i++) {
-        if (text[i] == '\n') {
+        char ch = text[i];
+        unsigned char uc = (unsigned char)ch;
+
+        if (uc > 127) {
+            ch = '?';
+            uc = '?';
+        }
+
+        if (ch == '\n') {
             check_newline_and_scroll(&props, cell_height, direct_vram);
             continue; 
         }
 
-        if (text[i] == '\r') {
+        if (ch == '\r') {
             cursor_x = DEFAULT_CURSOR_X;
             continue; 
         }
 
-
-        //TODO: Handle backspace properly
-        if (text[i] == '\b') {
+        if (ch == '\b') {
             bool can_move_back = true;
 
             if (cursor_x >= DEFAULT_CURSOR_X + cell_width) {
@@ -191,7 +197,7 @@ void kprint(const char *text, uint32_t color, int32_t scale, bool direct_vram) {
             continue; 
         }
 
-        if (text[i] == ' ') {
+        if (ch == ' ') {
             if (cursor_x + cell_width > (int32_t)fb->width) {
                 check_newline_and_scroll(&props, cell_height, direct_vram);
             }
@@ -201,7 +207,7 @@ void kprint(const char *text, uint32_t color, int32_t scale, bool direct_vram) {
             continue;
         }
 
-        if (text[i] == '\t') {
+        if (ch == '\t') {
             int32_t tab_width = cell_width * TAB_SIZE;
             if (cursor_x + tab_width > (int32_t)fb->width) {
                 check_newline_and_scroll(&props, cell_height, direct_vram);
@@ -216,7 +222,7 @@ void kprint(const char *text, uint32_t color, int32_t scale, bool direct_vram) {
             continue;
         }
 
-        if ((unsigned char)text[i] < ' ') {
+        if (uc < ' ') {
             continue;
         }
 
@@ -224,14 +230,13 @@ void kprint(const char *text, uint32_t color, int32_t scale, bool direct_vram) {
             check_newline_and_scroll(&props, cell_height, direct_vram);
         }
 
-        char single_char_str[2] = { text[i], '\0' };
+        char single_char_str[2] = { ch, '\0' };
 
         blit32_TextNExplicit(props.Buffer, props.Value, props.Scale, 
                              props.BufWidth, props.BufHeight, props.Wrap, 
                              cursor_x, cursor_y, -1, single_char_str);
 
         cursor_x += cell_width;
-        
     }
 }
 
@@ -415,7 +420,8 @@ void screen_init() {
         kernel_panic("Failed to initialize screen: No valid framebuffer available.");
     }
 
-    fb = framebuffer_request.response->framebuffers[0];
+    memcpy(&fb_storage, framebuffer_request.response->framebuffers[0], sizeof(struct limine_framebuffer));
+    fb = &fb_storage;
 
     // -- Check if the framebuffer meets the kernel's requirements --
     if (fb->bpp != 32) {

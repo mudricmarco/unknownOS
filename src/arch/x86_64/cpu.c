@@ -27,3 +27,7 @@ void halt(void) {
 void halt_sti(void) {
     asm volatile ("sti; hlt");
 }
+
+void flush_tlb(uint64_t virt_addr) {
+    asm volatile ("invlpg (%0)" :: "r" (virt_addr) : "memory");
+}

@@ -14,10 +14,8 @@ kanban-plugin: board
 
 ## To Do
 
-- [ ] VMM: Initialize PML4, PDPT, PD, and PT page tables
-- [ ] VMM: Implement the `map_page()` function
-- [ ] VMM: Reload `CR3` with the new kernel page directory
 - [ ] Heap Allocator: Implement basic `kmalloc()` and `kfree()`
+- [ ] VMM: Add vmm_unmap_page
 
 
 ## In Progress
@@ -43,6 +41,9 @@ kanban-plugin: board
 - [ ] IDT initialization & handling
 - [ ] APIC & LAPIC support with delay management
 - [ ] PS/2 Keyboard Driver: Handle scancodes via I/O APIC
+- [ ] VMM: Implement the `map_page()` function
+- [ ] VMM: Initialize PML4, PDPT, PD, and PT page tables
+- [ ] VMM: Reload `CR3` with the new kernel page directory
 
 
 

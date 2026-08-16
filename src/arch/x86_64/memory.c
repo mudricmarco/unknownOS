@@ -6,3 +6,7 @@ uint64_t get_current_cr3(void) {
     __asm__ volatile("mov %%cr3, %0" : "=r"(cr3_value));
     return cr3_value;
 }
+
+void write_cr3(uint64_t phys_addr) {
+    asm volatile("mov %0, %%cr3" :: "r"(phys_addr) : "memory");
+}

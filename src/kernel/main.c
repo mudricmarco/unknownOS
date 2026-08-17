@@ -9,12 +9,13 @@
 #include <kernel/init.h>
 #include <kernel/timer/timer.h>
 #include <drivers/keyboard.h>
+#include <kernel/memory/heap.h>
 
 #ifdef CONFIG_ARCH_X86_64
 #include <arch/x86_64/cpu.h>
 #endif
 
-#define kversion "0.1.0"
+#define kversion "0.2.0"
 
 #define DIRECT_VRAM_WRITE false
 

@@ -52,6 +52,9 @@ SECTIONS
         __data_end = .;
     } :data
 
+    . = ALIGN(4096);
+    __heap_start = .;
+
     /DISCARD/ : {
         *(.eh_frame*)
         *(.note .note.*)

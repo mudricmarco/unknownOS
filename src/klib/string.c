@@ -10,6 +10,12 @@ int strcmp(const char *s1, const char *s2) {
     return *(const unsigned char*)s1 - *(const unsigned char*)s2;
 }
 
+char *strcpy(char *restrict dest, const char *restrict src) {
+    char *saved = dest;
+    while ((*dest++ = *src++) != '\0');
+    return saved;
+}
+
 void int_to_string(int64_t n, char* str) {
     int64_t i = 0;
     int64_t is_negative = 0;

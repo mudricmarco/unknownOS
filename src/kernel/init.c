@@ -10,6 +10,7 @@
 #include <kernel/panic.h>
 #include <klib/math.h>
 #include <drivers/keyboard.h>
+#include <kernel/memory/heap.h>
 
 #ifdef CONFIG_ARCH_X86_64
 #include <arch/x86_64/cpu.h>
@@ -76,6 +77,10 @@ void kernel_init(void) {
     log_step("Initializing keyboard driver");
     keyboard_init();
     idt_register_handler(IOAPIC_IDT_VECTOR, keyboard_irq_handler);
+    log_ok();
+
+    log_step("Initializing Heap");
+    heap_init();
     log_ok();
 
     enable_interrupts();

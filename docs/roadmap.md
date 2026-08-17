@@ -22,7 +22,6 @@ kanban-plugin: board
 
 ## To Do
 
-- [ ] Heap Allocator: Implement basic `kmalloc()` and `kfree()` 
 
 
 ## In Progress
@@ -39,19 +38,23 @@ kanban-plugin: board
 
 ## Done
 
-- [ ] Bootloader setup using Limine 
-- [ ] Framebuffer video driver (formatted text, manual pixel drawing, colors) 
-- [ ] Base `klib` library (math, mem, string, intrusive circular linked list) 
-- [ ] Serial driver (I/O logging) 
-- [ ] Kernel Panic handler 
-- [ ] Physical Memory Manager (PMM) 
-- [ ] IDT initialization & handling 
-- [ ] APIC & LAPIC support with delay management 
-- [ ] PS/2 Keyboard Driver: Handle scancodes via I/O APIC 
-- [ ] VMM: Implement the `map_page()` function 
-- [ ] VMM: Initialize PML4, PDPT, PD, and PT page tables 
-- [ ] VMM: Reload `CR3` with the new kernel page directory 
-- [ ] VMM: Add vmm_unmap_page 
+- [ ] Bootloader setup using Limine
+- [ ] Framebuffer video driver (formatted text, manual pixel drawing, colors)
+- [ ] Base `klib` library (math, mem, string, intrusive circular linked list)
+- [ ] Serial driver (I/O logging)
+- [ ] Kernel Panic handler
+- [ ] Physical Memory Manager (PMM)
+- [ ] IDT initialization & handling
+- [ ] APIC & LAPIC support with delay management
+- [ ] PS/2 Keyboard Driver: Handle scancodes via I/O APIC
+- [ ] VMM: Implement the `map_page()` function
+- [ ] VMM: Initialize PML4, PDPT, PD, and PT page tables
+- [ ] VMM: Reload `CR3` with the new kernel page directory
+- [ ] VMM: Add vmm_unmap_page
+- [ ] Heap Allocator: Implement basic `kmalloc()` and `kfree()`
+
+
+
 
 %% kanban:settings
 ```

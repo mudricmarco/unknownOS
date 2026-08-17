@@ -33,6 +33,65 @@ static void enable_nxe(void) {
 #define P2V(phys) ((void*)((uint64_t)(phys) + get_hhdm_offset()))
 #define V2P(virt) ((uint64_t)(virt) - get_hhdm_offset())
 
+#define LARGE_PAGE_SIZE (2 * 1024 * 1024)
+#define VMM_FLAG_PS (1ULL << 7)
+
+// Map 2MB if available
+static bool vmm_map_range(page_table_t *pml4, uint64_t virt_start, uint64_t phys_start, uint64_t length, uint64_t flags) {
+    uint64_t virt = virt_start;
+    uint64_t phys = phys_start;
+    uint64_t end = virt_start + length;
+
+    uint64_t table_flags = VMM_FLAG_PRESENT | VMM_FLAG_WRITABLE;
+    if (flags & VMM_FLAG_USER) {
+        table_flags |= VMM_FLAG_USER;
+    }
+
+    while (virt < end) {
+        if ((virt % LARGE_PAGE_SIZE) == 0 && (phys % LARGE_PAGE_SIZE) == 0 && (end - virt) >= LARGE_PAGE_SIZE) {
+            uint64_t pml4_index = PML4_INDEX(virt);
+            uint64_t pdpt_index = PDPT_INDEX(virt);
+            uint64_t pd_index = PD_INDEX(virt);
+            page_table_t *pdpt, *pd;
+
+            // Get or create PDPT
+            if (pml4->entries[pml4_index] & VMM_FLAG_PRESENT) {
+                pdpt = (page_table_t *)P2V(pml4->entries[pml4_index] & PAGE_FRAME_MASK);
+            } else {
+                uint64_t pdpt_phys = (uint64_t)pmm_alloc_page();
+                if (!pdpt_phys) return false;
+                pdpt = (page_table_t *)P2V(pdpt_phys);
+                memset(pdpt, 0, PAGE_SIZE);
+                pml4->entries[pml4_index] = pdpt_phys | table_flags;
+            }
+
+            // Get or create PD
+            if (pdpt->entries[pdpt_index] & VMM_FLAG_PRESENT) {
+                pd = (page_table_t *)P2V(pdpt->entries[pdpt_index] & PAGE_FRAME_MASK);
+            } else {
+                uint64_t pd_phys = (uint64_t)pmm_alloc_page();
+                if (!pd_phys) return false;
+                pd = (page_table_t *)P2V(pd_phys);
+                memset(pd, 0, PAGE_SIZE);
+                pdpt->entries[pdpt_index] = pd_phys | table_flags;
+            }
+
+            // Set PD entry with PS bit for a 2 MiB mapping
+            pd->entries[pd_index] = (phys & PAGE_FRAME_MASK) | flags | VMM_FLAG_PRESENT | VMM_FLAG_PS;
+
+            virt += LARGE_PAGE_SIZE;
+            phys += LARGE_PAGE_SIZE;
+        } else {
+            // Fallback to mapping a single 4 KiB page
+            if (!vmm_map_page(pml4, virt, phys, flags)) return false;
+            virt += PAGE_SIZE;
+            phys += PAGE_SIZE;
+        }
+    }
+
+    return true;
+}
+
 // Get symbols from the linker
 extern uint8_t __requests_start[], __requests_end[];
 extern uint8_t __text_start[],     __text_end[];
@@ -141,19 +200,19 @@ bool vmm_unmap_page(page_table_t *pml4, uint64_t virt_addr) {
 void vmm_map_hhdm(page_table_t *kernel_pml4) {
     if (!memmap_request.response) {
         kernel_panic("Limine memory map not available");
-    } 
+    }
     struct limine_memmap_response *memmap = memmap_request.response;
 
-    // Cycle every entry
-    for(size_t i = 0; i < memmap->entry_count; i++) {
+    for (size_t i = 0; i < memmap->entry_count; i++) {
         struct limine_memmap_entry *entry = memmap->entries[i];
 
         uint64_t phys_start = entry->base & PAGE_FRAME_MASK;
-        uint64_t phys_end   = (entry->base + entry->length + 0xFFF) & PAGE_FRAME_MASK;
+        uint64_t phys_end = (entry->base + entry->length + 0xFFF) & PAGE_FRAME_MASK;
+        uint64_t length = phys_end - phys_start;
+        uint64_t virt_start = (uint64_t)P2V(phys_start);
 
-        for (uint64_t phys = phys_start; phys < phys_end; phys += PAGE_SIZE) {
-            uint64_t virt = (uint64_t)P2V(phys);
-            vmm_map_page(kernel_pml4, virt, phys, VMM_FLAG_PRESENT | VMM_FLAG_WRITABLE);
+        if (!vmm_map_range(kernel_pml4, virt_start, phys_start, length, VMM_FLAG_PRESENT | VMM_FLAG_WRITABLE)) {
+            kernel_panic("vmm_map_hhdm: failed to map HHDM range");
         }
     }
 }
@@ -161,15 +220,16 @@ void vmm_map_hhdm(page_table_t *kernel_pml4) {
 static void vmm_map_section(page_table_t *pml4, uint8_t *start, uint8_t *end, uint64_t flags) {
     if (!kernel_address_request.response) {
         kernel_panic("Limine kernel address not available");
-    } 
+    }
     struct limine_executable_address_response *exec_addr = kernel_address_request.response;
 
     uint64_t virt_start = (uint64_t)start & PAGE_FRAME_MASK;
-    uint64_t virt_end   = ((uint64_t)end + 0xFFF) & PAGE_FRAME_MASK;
+    uint64_t virt_end = ((uint64_t)end + 0xFFF) & PAGE_FRAME_MASK;
+    uint64_t length = virt_end - virt_start;
+    uint64_t phys_start = exec_addr->physical_base + (virt_start - exec_addr->virtual_base);
 
-    for (uint64_t virt = virt_start; virt < virt_end; virt += PAGE_SIZE) {
-        uint64_t phys = exec_addr->physical_base + (virt - exec_addr->virtual_base);
-        vmm_map_page(pml4, virt, phys, flags);
+    if (!vmm_map_range(pml4, virt_start, phys_start, length, flags)) {
+        kernel_panic("vmm_map_section: failed to map kernel section");
     }
 }
 
@@ -191,11 +251,12 @@ void vmm_map_framebuffer(page_table_t *kernel_pml4) {
     uint64_t fb_phys = V2P(fb_virt);
 
     uint64_t virt_start = fb_virt & PAGE_FRAME_MASK;
-    uint64_t virt_end   = (fb_virt + fb_size + 0xFFF) & PAGE_FRAME_MASK;
+    uint64_t virt_end = (fb_virt + fb_size + 0xFFF) & PAGE_FRAME_MASK;
     uint64_t phys_start = fb_phys & PAGE_FRAME_MASK;
+    uint64_t length = virt_end - virt_start;
 
-    for (uint64_t virt = virt_start, phys = phys_start; virt < virt_end; virt += PAGE_SIZE, phys += PAGE_SIZE) {
-        vmm_map_page(kernel_pml4, virt, phys, VMM_FLAG_PRESENT | VMM_FLAG_WRITABLE);
+    if (!vmm_map_range(kernel_pml4, virt_start, phys_start, length, VMM_FLAG_PRESENT | VMM_FLAG_WRITABLE)) {
+        kernel_panic("vmm_map_framebuffer: failed to map framebuffer");
     }
 }
 

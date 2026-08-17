@@ -14,3 +14,5 @@ void halt(void);
 void halt_sti(void);
 
 void flush_tlb(uint64_t virt_addr);
+
+void pause(void);

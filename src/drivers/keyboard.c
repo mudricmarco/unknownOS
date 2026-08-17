@@ -1,7 +1,7 @@
-#include "kernel/panic.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <klib/list.h>
+#include <kernel/panic.h>
 
 #ifdef CONFIG_ARCH_X86_64
 #include <arch/x86_64/cpu.h>
@@ -130,6 +130,6 @@ char keyboard_getchar(void) {
         }
 
         enable_interrupts();
-        __asm__ volatile("pause");
+        pause();
     }
 }

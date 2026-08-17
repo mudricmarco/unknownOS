@@ -1,3 +1,4 @@
+#include "kernel/panic.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <klib/list.h>
@@ -98,9 +99,13 @@ void keyboard_init(void) {
 }
 
 void keyboard_irq_handler(struct registers* regs) {
-    (void)regs;
-
     uint8_t scancode = inb(0x60);
+
+    //DEGUGGING
+    //! For debugging purposes, pressing the ESC key (scancode 0x01) will trigger a kernel panic.
+    if(scancode == 0x01) {
+        kernel_panic_detailed(regs, "Forced panic via ESC key");
+    }
 
     keyboard_process_scancode(scancode);
 

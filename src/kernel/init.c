@@ -18,6 +18,7 @@
 #include <arch/x86_64/idt.h>
 #include <arch/x86_64/drivers/ioapic.h>
 #include <arch/x86_64/memory.h>
+#include <arch/x86_64/gdt.h>
 #endif
 
 static void log_step(const char *msg) {
@@ -60,25 +61,32 @@ void kernel_init(void) {
     log_ok();
     kprintf_default("          ---> CR3 switched: 0x%x -> 0x%x\n", old_cr3, new_cr3);
 
-    // 5. Interrupt Descriptor Table
+
+    // 5. Global Descriptor Table
+    log_step("Initializing GDT");
+    gdt_init();
+    log_ok();
+
+    // 6. Interrupt Descriptor Table
     log_step("Initializing IDT");
     idt_init();
     log_ok();
 
 #ifdef CONFIG_ARCH_X86_64
-    // 6. LAPIC Timer
+    // 7. LAPIC Timer
     log_step("Initializing LAPIC timer");
     lapic_timer_device_init(LAPIC_TIMER_DIV_16);
     idt_register_handler(LAPIC_TIMER_VECTOR, lapic_timer_irq_handler);
     log_ok();
 #endif
 
-    // 7. Keyboard Driver
+    // 8. Keyboard Driver
     log_step("Initializing keyboard driver");
     keyboard_init();
     idt_register_handler(IOAPIC_IDT_VECTOR, keyboard_irq_handler);
     log_ok();
 
+    // 9. Heap Memory Manager
     log_step("Initializing Heap");
     heap_init();
     log_ok();

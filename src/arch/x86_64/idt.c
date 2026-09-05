@@ -37,7 +37,7 @@ static void idt_set_descriptor(uint8_t vector, uint64_t isr_address, uint8_t att
     
     idt[vector].attributes = attributes;
     idt[vector].kernel_cs  = _kernel_cs;
-    idt[vector].ist        = 0; // For now, i'm not using the IST feature, so it's set to 0. Mabybe in the future.
+    idt[vector].ist        = 0;
     idt[vector].zero       = 0;
 }
 
@@ -91,6 +91,8 @@ void idt_init(void) {
     for (int i = 0; i < 256; i++) {
         idt_set_descriptor(i, isr_stub_table[i], 0x8E, current_cs);
     }
+
+    idt[8].ist = 1; // Set IST for Double Fault to use the dedicated stack
 
     idt_pointer.limit = (sizeof(struct idt_entry) * 256) - 1;
     idt_pointer.base  = (uint64_t)&idt;

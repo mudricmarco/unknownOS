@@ -18,6 +18,7 @@ kanban-plugin: board
 - [ ] Inter-Process Communication (IPC) / Pipes
 - [ ] Multi-Core support (SMP) & AP initialization
 - [ ] VBE / GOP Graphics Mode (GUI rendering) & mouse support
+- [ ] Enhance VMM & PMM
 
 
 ## To Do
@@ -52,6 +53,7 @@ kanban-plugin: board
 - [ ] VMM: Reload `CR3` with the new kernel page directory
 - [ ] VMM: Add vmm_unmap_page
 - [ ] Heap Allocator: Implement basic `kmalloc()` and `kfree()`
+- [ ] Add GDT and TSS
 
 
 

@@ -93,6 +93,11 @@ void idt_init(void) {
     }
 
     idt[8].ist = 1; // Set IST for Double Fault to use the dedicated stack
+    idt[2].ist = 2; // Set IST for NMI to use the dedicated stack
+    idt[18].ist = 3; // Set IST for Machine Check to use the dedicated stack
+    idt[1].ist = 4; // Set IST for Debug to use the dedicated stack
+    idt[3].ist = 4; // Set IST for Debug to use the dedicated stack
+    idt[12].ist = 5; // Set IST for Stack Fault to use the dedicated stack
 
     idt_pointer.limit = (sizeof(struct idt_entry) * 256) - 1;
     idt_pointer.base  = (uint64_t)&idt;

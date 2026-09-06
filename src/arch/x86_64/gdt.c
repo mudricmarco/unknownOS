@@ -2,6 +2,8 @@
 #include <arch/x86_64/idt.h>
 #include <stddef.h>
 
+#define IST_STACK_SIZE 4096 // Size of each Interrupt Stack Table (IST) stack in bytes 
+
 static struct {
     struct gdt_entry entries[5];
     struct tss_descriptor tss_desc;
@@ -10,7 +12,11 @@ static struct {
 static struct gdt_ptr gdt_pointer;
 static struct tss_entry tss;
 
-static uint8_t double_fault_stack[4096];
+static uint8_t double_fault_stack[IST_STACK_SIZE]  __attribute__((aligned(16))); // Stack for double fault handler
+static uint8_t nmi_stack[IST_STACK_SIZE]           __attribute__((aligned(16))); // Stack for NMI handler
+static uint8_t machine_check_stack[IST_STACK_SIZE] __attribute__((aligned(16))); // Stack for machine check handler
+static uint8_t debug_stack[IST_STACK_SIZE]         __attribute__((aligned(16))); // Stack for debug exception handler
+static uint8_t stack_fault_stack[IST_STACK_SIZE]   __attribute__((aligned(16))); // Stack for stack segmentation fault handler
 
 static void gdt_set_entry(int num, uint32_t base, uint32_t limit, uint8_t access, uint8_t gran) {
     gdt.entries[num].base_low    = (base & 0xFFFF);
@@ -55,7 +61,13 @@ void gdt_init(void) {
         ((uint8_t*)&tss)[i] = 0;
     }
 
+    /* Set up the Interrupt Stack Table (IST) entries */
     tss.ist1 = (uint64_t)double_fault_stack + sizeof(double_fault_stack);
+    tss.ist2 = (uint64_t)nmi_stack + sizeof(nmi_stack);
+    tss.ist3 = (uint64_t)machine_check_stack + sizeof(machine_check_stack);
+    tss.ist4 = (uint64_t)debug_stack + sizeof(debug_stack);
+    tss.ist5 = (uint64_t)stack_fault_stack + sizeof(stack_fault_stack);
+    // ist6 & ist7 for future use, currently not used
 
     gdt_set_tss_descriptor((uint64_t)&tss, sizeof(tss) - 1);
 

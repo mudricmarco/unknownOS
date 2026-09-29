@@ -17,6 +17,7 @@
 #define IA32_EFER_MSR 0xC0000080
 #define IA32_EFER_NXE (1ULL << 11)
 
+/* Only works on x86_64, but i should add more platforms later. Also i should put it in the x86_64 arch folder. */
 static void enable_nxe(void) {
     uint32_t lo, hi;
     uint64_t efer;

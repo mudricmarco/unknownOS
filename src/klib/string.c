@@ -16,6 +16,17 @@ char *strcpy(char *restrict dest, const char *restrict src) {
     return saved;
 }
 
+char *strncpy(char *dest, const char *src, size_t n) {
+    size_t i;
+    for (i = 0; i < n && src[i] != '\0'; i++) {
+        dest[i] = src[i];
+    }
+    for (; i < n; i++) {
+        dest[i] = '\0';
+    }
+    return dest;
+}
+
 void int_to_string(int64_t n, char* str) {
     int64_t i = 0;
     int64_t is_negative = 0;

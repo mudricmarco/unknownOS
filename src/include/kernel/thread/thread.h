@@ -28,5 +28,7 @@ typedef struct thread {
     struct list_head all_node;
 } thread_t;
 
-thread_t *thread_create(const char *name, void (*entry)(void *));
+thread_id_t new_thread_id(void);
+
+thread_t *thread_create(const char *name, void (*entry)(void *), void *arg);
 void thread_destroy(thread_t *thread);

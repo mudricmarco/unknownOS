@@ -6,7 +6,6 @@ kanban-plugin: board
 
 ## Backlog
 
-- [ ] Kernel Threads & Task Control Block (PCB) structure
 - [ ] Context Switching & Timer-based Preemptive Scheduler
 - [ ] User Mode (Ring 3) transition (`sysret`/`syscall`)
 - [ ] System Call dispatcher and core syscalls (`write`, `exit`, etc.)
@@ -27,6 +26,7 @@ kanban-plugin: board
 
 ## In Progress
 
+- [ ] Kernel Threads & Task Control Block (PCB) structure
 
 
 ## Testing

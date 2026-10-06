@@ -34,7 +34,7 @@ void screen_init();
 
 void screen_clear(uint32_t color, bool direct_vram);
 
-void kprintf(uint32_t color, int32_t scale, bool direct_vram, const char* fmt, ...);
+void kprintf(uint32_t color, int32_t scale, bool direct_vram, const char* fmt, ...)__attribute__((format(printf, 4, 5)));
 
 int create_string_buf(char* dest, size_t size, const char* fmt, ...);
 

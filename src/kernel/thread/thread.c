@@ -23,6 +23,14 @@ void thread_entry_wrapper(void (*entry)(void *), void *arg) {
     hcf();
 }
 
+void change_thread_state(thread_t *thread, thread_state_t new_state) {
+    if (thread == NULL) {
+        return;
+    }
+
+    thread->state = new_state;
+}
+
 thread_t *thread_create(const char *name, void (*entry)(void *), void *arg) {
     if(name == NULL || entry == NULL) {
         return NULL;

@@ -30,5 +30,7 @@ typedef struct thread {
 
 thread_id_t new_thread_id(void);
 
+void change_thread_state(thread_t *thread, thread_state_t new_state);
+
 thread_t *thread_create(const char *name, void (*entry)(void *), void *arg);
 void thread_destroy(thread_t *thread);

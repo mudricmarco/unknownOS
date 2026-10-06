@@ -250,16 +250,32 @@ int kvsnprintf(char* buf, size_t size, const char* fmt, va_list args) {
             buf[idx++] = fmt[i];
             continue;
         }
-
         i++;
+        bool is_long = false;
+        while (fmt[i] == 'l' || fmt[i] == 'z' || fmt[i] == 'h') {
+            if (fmt[i] == 'l' || fmt[i] == 'z') is_long = true;
+            i++;
+        }
 
         switch (fmt[i]) {
-            case 'd': {
-                int64_t num = va_arg(args, int64_t);
+            case 'd':
+            case 'i':
+            case 'u': {
+                int64_t num = is_long ? va_arg(args, int64_t) : va_arg(args, int32_t);
                 char str_buffer[64];
                 int_to_string(num, str_buffer);
                 for (size_t j = 0; str_buffer[j] != '\0' && idx < size - 1; j++) {
                     buf[idx++] = str_buffer[j];
+                }
+                break;
+            }
+            case 'x':
+            case 'p': {
+                uint64_t num = va_arg(args, uint64_t);
+                char hex_buffer[32];
+                int_to_hex_string(num, hex_buffer);
+                for (size_t j = 0; hex_buffer[j] != '\0' && idx < size - 1; j++) {
+                    buf[idx++] = hex_buffer[j];
                 }
                 break;
             }
@@ -276,20 +292,16 @@ int kvsnprintf(char* buf, size_t size, const char* fmt, va_list args) {
                 buf[idx++] = (char)ch;
                 break;
             }
-            case 'x': {
-                uint64_t num = va_arg(args, uint64_t);
-                char hex_buffer[32];
-                int_to_hex_string(num, hex_buffer);
-                for (size_t j = 0; hex_buffer[j] != '\0' && idx < size - 1; j++) {
-                    buf[idx++] = hex_buffer[j];
-                }
-                break;
-            }
             case '%': {
                 buf[idx++] = '%';
                 break;
             }
             default:
+                if (fmt[i] != '\0') {
+                    buf[idx++] = fmt[i];
+                } else {
+                    i--;
+                }
                 break;
         }
     }
@@ -301,29 +313,29 @@ int kvsnprintf(char* buf, size_t size, const char* fmt, va_list args) {
 // Helper function to consume format specifiers and their corresponding arguments from a va_list without printing them
 static void consume_format_args(const char* fmt, va_list args) {
     for (size_t i = 0; fmt[i] != '\0'; i++) {
-        if (fmt[i] != '%') {
-            continue;
-        }
+        if (fmt[i] != '%') continue;
 
         i++;
+        bool is_long = false;
+        while (fmt[i] == 'l' || fmt[i] == 'z' || fmt[i] == 'h') {
+            if (fmt[i] == 'l' || fmt[i] == 'z') is_long = true;
+            i++;
+        }
 
         switch (fmt[i]) {
-            case 'd': {
-                (void)va_arg(args, int64_t);
+            case 'd': case 'i': case 'u':
+                if (is_long) (void)va_arg(args, int64_t);
+                else (void)va_arg(args, int32_t);
                 break;
-            }
-            case 's': {
-                (void)va_arg(args, char*);
-                break;
-            }
-            case 'c': {
-                (void)va_arg(args, int);
-                break;
-            }
-            case 'x': {
+            case 'x': case 'p':
                 (void)va_arg(args, uint64_t);
                 break;
-            }
+            case 's':
+                (void)va_arg(args, char*);
+                break;
+            case 'c':
+                (void)va_arg(args, int);
+                break;
             case '%':
             default:
                 break;

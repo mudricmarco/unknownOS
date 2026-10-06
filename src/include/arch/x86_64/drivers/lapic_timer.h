@@ -5,7 +5,8 @@
 
 #include <arch/x86_64/registers.h>
 
-#define LAPIC_TIMER_VECTOR 0x20
+// TODO: Find another place to put this, maybe a file with all the Vector numbers for the interrupts.
+#define LAPIC_TIMER_VECTOR 0x20 // IRQ vector number for the LAPIC timer interrupt
 
 // LVT Flags
 #define LAPIC_TIMER_ONESHOT       (0 << 17)

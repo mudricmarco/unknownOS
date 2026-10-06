@@ -6,7 +6,6 @@ kanban-plugin: board
 
 ## Backlog
 
-- [ ] Context Switching & Timer-based Preemptive Scheduler
 - [ ] User Mode (Ring 3) transition (`sysret`/`syscall`)
 - [ ] System Call dispatcher and core syscalls (`write`, `exit`, etc.)
 - [ ] PCI Bus Enumeration driver
@@ -26,7 +25,7 @@ kanban-plugin: board
 
 ## In Progress
 
-- [ ] Kernel Threads & Task Control Block (PCB) structure
+- [ ] Context Switching & Timer-based Preemptive Scheduler
 
 
 ## Testing
@@ -54,6 +53,7 @@ kanban-plugin: board
 - [ ] VMM: Add vmm_unmap_page
 - [ ] Heap Allocator: Implement basic `kmalloc()` and `kfree()`
 - [ ] Add GDT and TSS
+- [ ] Kernel Threads & Task Control Block (PCB) structure
 
 
 

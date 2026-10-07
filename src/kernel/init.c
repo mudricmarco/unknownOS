@@ -19,6 +19,7 @@
 #include <arch/x86_64/drivers/ioapic.h>
 #include <arch/x86_64/memory.h>
 #include <arch/x86_64/gdt.h>
+#include <kernel/sched/sched.h>
 #endif
 
 static void log_step(const char *msg) {
@@ -33,7 +34,7 @@ void kernel_init(void) {
     disable_interrupts();
     set_auto_flush(false);
 
-    // 1. Early serial communication
+    // 1. Early serial communication & Bootloader requests
     serial_init();
     limine_init();
 
@@ -61,38 +62,43 @@ void kernel_init(void) {
     log_ok();
     kprintf_default("          ---> CR3 switched: 0x%x -> 0x%x\n", old_cr3, new_cr3);
 
-
-    // 5. Global Descriptor Table
+    // 5. Global Descriptor Table & Task State Segment
     log_step("Initializing GDT");
     gdt_init();
     log_ok();
 
-    // 6. Interrupt Descriptor Table
+    // 6. Interrupt Descriptor Table (Core exception handlers)
     log_step("Initializing IDT");
     idt_init();
     log_ok();
 
-#ifdef CONFIG_ARCH_X86_64
-    // 7. LAPIC Timer
-    log_step("Initializing LAPIC timer");
-    lapic_timer_device_init(LAPIC_TIMER_DIV_16);
-    idt_register_handler(LAPIC_TIMER_VECTOR, lapic_timer_irq_handler);
-    log_ok();
-#endif
-
-    // 8. Keyboard Driver
-    log_step("Initializing keyboard driver");
-    keyboard_init();
-    idt_register_handler(IOAPIC_IDT_VECTOR, keyboard_irq_handler);
-    log_ok();
-
-    // 9. Heap Memory Manager
+    // 7. Heap Memory Manager (MUST be active before scheduler for kmalloc)
     log_step("Initializing Heap");
     heap_init();
     log_ok();
 
-    enable_interrupts();
+    // 8. Preemptive Scheduler Initialization (Initializes ready_queue and current_thread)
+    log_step("Initializing Scheduler");
+    sched_init();
+    log_ok();
+
+#ifdef CONFIG_ARCH_X86_64
+    // 9. LAPIC Timer (Registered and configured after scheduler is ready)
+    log_step("Initializing LAPIC timer");
+    lapic_timer_device_init(LAPIC_TIMER_DIV_16);
+    idt_register_handler(LAPIC_TIMER_VECTOR, lapic_timer_irq_handler);
+    log_ok();
+
+    // 10. Keyboard Driver
+    log_step("Initializing keyboard driver");
+    keyboard_init();
+    idt_register_handler(IOAPIC_IDT_VECTOR, keyboard_irq_handler);
+    log_ok();
+#endif
 
     screen_flush();
     set_auto_flush(true);
+
+    // 11. Global Interrupt Enable
+    enable_interrupts();
 }

@@ -53,6 +53,10 @@ static inline bool list_empty(const struct list_head *head) {
     return head->next == head;
 }
 
+static inline bool list_is_singular(const struct list_head *head) {
+    return !list_empty(head) && (head->next == head->prev);
+}
+
 #ifndef container_of
 #define container_of(ptr, type, member) \
     ((type *)((char *)(ptr) - offsetof(type, member)))

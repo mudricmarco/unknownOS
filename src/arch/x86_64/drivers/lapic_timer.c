@@ -11,6 +11,9 @@
 #include <drivers/screen/screen.h>
 #include <drivers/acpi.h>
 
+// Not importing the entire timer.h because it's not necessary
+extern void timer_tick_event(void); // Forward declaration of the timer tick event function, which is defined in timer.c
+
 static volatile uint64_t lapic_timer_ticks = 0;
 static uint32_t selected_divider = LAPIC_TIMER_DIV_16;
 
@@ -75,6 +78,7 @@ void lapic_timer_irq_handler(struct registers* regs) {
     (void)regs;
     lapic_timer_ticks++;
     lapic_eoi();
+    timer_tick_event(); // Notify the timer subsystem of the tick event
 }
 
 static timer_device_t lapic_timer_dev = {

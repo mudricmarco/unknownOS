@@ -25,11 +25,11 @@ kanban-plugin: board
 
 ## In Progress
 
-- [ ] Context Switching & Timer-based Preemptive Scheduler
 
 
 ## Testing
 
+- [ ] Context Switching & Timer-based Preemptive Scheduler
 
 
 ## Triple Fault/Panic

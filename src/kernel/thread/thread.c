@@ -1,3 +1,4 @@
+#include "kernel/sched/sched.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <klib/list.h>
@@ -83,4 +84,23 @@ void thread_destroy(thread_t *thread) {
     }
 
     kfree(thread);
+}
+
+void thread_start(thread_t *thread) {
+    if(thread == NULL) {
+        return;
+    }
+
+    change_thread_state(thread, THREAD_STATE_READY);
+    list_add_tail(&thread->sched_node, get_ready_queue());
+}
+
+// TODO: Implement a better thread termination mechanism, possibly involving a thread exit function and cleanup of resources
+void thread_terminate(thread_t *thread) {
+    if(thread == NULL) {
+        return;
+    }
+
+    change_thread_state(thread, THREAD_STATE_TERMINATED);
+    list_del(&thread->sched_node);
 }

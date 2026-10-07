@@ -11,6 +11,8 @@ static LIST_HEAD(timer_list);
 
 static timer_device_t* active_timer = NULL;
 
+static timer_tick_callback_t tick_callback = NULL;
+
 struct list_head* get_registered_timers(void) {
     return &timer_list;
 }
@@ -58,5 +60,15 @@ void sleep_ms(uint32_t ms) {
 
     while (active_timer->get_ticks() < target) {
         halt_sti();
+    }
+}
+
+void timer_set_tick_callback(timer_tick_callback_t callback) {
+    tick_callback = callback;
+}
+
+void timer_tick_event(void) {
+    if (tick_callback != NULL) {
+        tick_callback();
     }
 }

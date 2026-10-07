@@ -22,6 +22,7 @@ typedef struct thread {
     thread_id_t id;
     char name[32];
     thread_state_t state;
+    uint32_t time_slice;
     void *kernel_stack_base;
     size_t kernel_stack_size;
     struct list_head sched_node;
@@ -34,3 +35,5 @@ void change_thread_state(thread_t *thread, thread_state_t new_state);
 
 thread_t *thread_create(const char *name, void (*entry)(void *), void *arg);
 void thread_destroy(thread_t *thread);
+
+void thread_start(thread_t *thread);

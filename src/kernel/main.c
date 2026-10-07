@@ -20,11 +20,12 @@
 
 #define DIRECT_VRAM_WRITE false
 
+//! If i remove the sleep then for some reason the keyboard input after the thread is finished is not working
 void print_hello_thread(void *arg) {
     const char *message = (const char *)arg;
     for (int i = 0; i < 10; i++) {
         kprintf_default_scale(COLOR_WHITE, DIRECT_VRAM_WRITE, "%s", message);
-        sleep_ms(1000);
+        sleep_ms(1000)
     }
 }
 
@@ -72,6 +73,8 @@ void kmain(void) {
     screen_flush();
 
     set_auto_flush(true);
+
+    thread_start(thread1);
 
     while (1) {
         char c = keyboard_getchar();

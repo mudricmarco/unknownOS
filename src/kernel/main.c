@@ -25,7 +25,7 @@ void print_hello_thread(void *arg) {
     const char *message = (const char *)arg;
     for (int i = 0; i < 10; i++) {
         kprintf_default_scale(COLOR_WHITE, DIRECT_VRAM_WRITE, "%s", message);
-        sleep_ms(1000)
+        sleep_ms(1000);
     }
 }
 

@@ -21,18 +21,31 @@ thread_t* get_current_thread(void) {
 }
 
 void schedule(void) {
-    // If there are no threads in the ready queue or only one thread, there's nothing to schedule
-    if (list_empty(&ready_queue) || list_is_singular(&ready_queue)) {
-        return;
-    }
+    if (list_empty(&ready_queue)) return;
 
     thread_t *old_thread = current_thread;
+    struct list_head *next_node = NULL;
 
-    // Selection of the next thread to run for round-robin scheduling
-    struct list_head *next_node = old_thread->sched_node.next;
-    
+    // If the current thread is terminated, remove it from the ready queue and select the next thread
+    if (old_thread->state == THREAD_STATE_TERMINATED) {
+        next_node = old_thread->sched_node.next;
+        list_del(&old_thread->sched_node);
+        
+        if (next_node == &ready_queue) {
+            next_node = next_node->next;
+        }
+    } else {
+        if (list_is_singular(&ready_queue)) {
+            return;
+        }
+        next_node = old_thread->sched_node.next;
+        if (next_node == &ready_queue) {
+            next_node = next_node->next;
+        }
+    }
+
     if (next_node == &ready_queue) {
-        next_node = next_node->next;
+        return;
     }
 
     thread_t *next_thread = list_entry(next_node, thread_t, sched_node);

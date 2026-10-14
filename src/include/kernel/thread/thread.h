@@ -25,6 +25,8 @@ typedef struct thread {
     uint32_t time_slice;
     void *kernel_stack_base;
     size_t kernel_stack_size;
+    void (*entry)(void *);
+    void *arg;
     struct list_head sched_node;
     struct list_head all_node;
 } thread_t;
